@@ -1,5 +1,6 @@
 import {requireThat,safeInt,uuid} from './codec.mjs';
 import {BINDING} from './tokens.mjs';
+import {validateAcademyCookiePairControl} from './academy-cookie-pair.mjs';
 export function controlShape(suffix,value,prefix){
  const parts=prefix.split('/'),app=parts[3],env=parts[2];
  requireThat(value.app===app&&value.env===env,'MALFORMED_CONTROL_NAMESPACE',503);
@@ -7,6 +8,10 @@ export function controlShape(suffix,value,prefix){
   requireThat(typeof value.policyEpoch==='string'&&value.policyEpoch.length>0&&typeof value.keyRegistryEpoch==='string'&&value.keyRegistryEpoch.length>0&&safeInt(value.policyRevision,1)&&safeInt(value.keyRegistryRevision,1)&&safeInt(value.migrationFloor,1)&&safeInt(value.inactivityMinutes,15)&&value.inactivityMinutes<=200,'MALFORMED_APP_CONTROL',503);
   requireThat(Array.isArray(value.withdrawnKids)&&value.withdrawnKids.every(k=>/^[A-Za-z0-9._-]{1,64}$/.test(k))&&new Set(value.withdrawnKids).size===value.withdrawnKids.length,'MALFORMED_KEY_REGISTRY',503);
  }else if(suffix.startsWith('security/session/')){
+  if(Object.hasOwn(value,'academyPair')){
+   requireThat(app==='academy','MALFORMED_CONTROL_NAMESPACE',503);
+   validateAcademyCookiePairControl(value.academyPair);
+  }
   requireThat(value.binding&&Object.keys(value.binding).length===BINDING.length&&BINDING.every(k=>Object.hasOwn(value.binding,k))&&uuid(value.binding.sid)&&value.binding.sid===suffix.slice(17),'MALFORMED_SESSION_BINDING',503);
   requireThat(['ADMITTED_LOCKED','UNLOCKED','LOCKED','REVOKED','EXPIRED'].includes(value.localState)&&typeof value.authorityReady==='boolean','MALFORMED_SESSION_STATE',503);
   for(const name of ['validationDeadline','idleUntil','s_exp'])requireThat(safeInt(value[name]),'MALFORMED_SESSION_DEADLINE',503);

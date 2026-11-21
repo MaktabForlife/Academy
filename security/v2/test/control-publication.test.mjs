@@ -99,3 +99,11 @@ test('native resource provenance also remains semantic across physical generatio
  const plan=await sourceControlPlan(next,{suffix:resourceSuffix,projection:p,expectedCR:1,commitRef:'resource-generation2',nativePlan:n});await next.batch(plan.statements);await assertCommittedControl(next,resourceSuffix,p);await assertCommittedControl(d.store,resourceSuffix,p);
  assert.equal(d.raw.prepare('SELECT count(*) n FROM jwt_v2_control_targets').get().n,1);assert.ok(d.raw.prepare('SELECT object_key FROM jwt_v2_control_targets').get().object_key.includes('/generation1/'));
 });
+
+test('a shared Academy registry withdrawal cannot be removed or published at an older revision',async()=>{
+ const d=await appFixture(),withdrawn=['synthetic-shared-key'];
+ await register(d.store,appProjection({sharedAcademyRegistryRevision:2,withdrawnSharedAcademyKids:withdrawn}),'shared-key-2');
+ for(const patch of [{},{sharedAcademyRegistryRevision:1,withdrawnSharedAcademyKids:withdrawn},{sharedAcademyRegistryRevision:3,withdrawnSharedAcademyKids:[]}]){
+  await assert.rejects(registryControlPlan(d.store,{registry:appProjection(patch),receiptRef:'shared-key-rollback',predecessor:{epoch:'z-registry-epoch',revision:1}}),code('KEY_WITHDRAWAL_ROLLBACK'));
+ }
+});

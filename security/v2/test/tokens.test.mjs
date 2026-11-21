@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {strictJSON,canonical,unb64u,b64u,bytes,opaque,fingerprint,vectorDigest,compareVector} from '../codec.mjs';
-import {issueToken,verifyToken,readCookies,cookiePair,ownOrigin,ORIGINS} from '../tokens.mjs';
+import {issueToken,verifyToken,preverifyAPI,profileConfig,readCookies,readSharedAcademyAccess,cookiePair,clearCookies,ownOrigin,ORIGINS,ACADEMY_SHARED_COOKIE,ACADEMY_SHARED_AUDIENCES} from '../tokens.mjs';
 import {fixture,signing} from './helpers.mjs';
 const key=await signing();
 test('canonical JSON uses JCS property order, UTF-8 and safe integer profile',()=>{
@@ -75,4 +75,50 @@ test('provider/sibling origins cannot mutate browser auth',()=>{
 test('fractional or unsafe wire number lexemes cannot round into accepted security counters',()=>{
  for(const value of ['1.000000000000000000001','9007199254740991.1','9007199254740992','1e0','1.0','1e309'])assert.throws(()=>strictJSON('{"counter":'+value+'}'));
  assert.equal(strictJSON('{"counter":9007199254740991}').counter,Number.MAX_SAFE_INTEGER);
+});
+
+test('the dedicated Academy access token is usable only for the explicit shared profile',async()=>{
+ const f=await fixture(),academy=profileConfig({app:'academy'}),keys=new Map([['academy-shared-test',key.publicKey]]);
+ const binding={...f.binding,sid:f.psid,iss:academy.origin,aud:ACADEMY_SHARED_AUDIENCES[0]};
+ const claims={...binding,aud:[...ACADEMY_SHARED_AUDIENCES],afg:f.now,iat:f.now,exp:f.deadline,jti:crypto.randomUUID()};
+ const signing={profile:'shared',config:academy,key:key.privateKey,kid:'academy-shared-test',now:f.now,idleUntil:f.idleUntil};
+ const token=await issueToken(claims,signing);
+ assert(bytes(token).length<=2048);
+ const verified=await preverifyAPI(token,{profile:'shared',config:academy,keys,now:f.now});
+ assert.equal(verified.sid,binding.sid);
+ assert.deepEqual({...await verifyToken(token,{...signing,keys,preverified:verified,projection:binding})},claims);
+ for(const app of ['studio','hifz']){
+  const config=profileConfig({app});
+  assert.deepEqual({...await verifyToken(token,{...signing,config,keys})},claims);
+  await assert.rejects(verifyToken(token,{...signing,profile:'api',config,keys}),/WRONG_TOKEN_PROFILE/);
+  await assert.rejects(issueToken(claims,{...signing,config}),/SHARED_ISSUER_REQUIRED/);
+ }
+ await assert.rejects(verifyToken(token,{...signing,keys,withdrawn:new Set(['academy-shared-test'])}),/UNTRUSTED_KEY/);
+ await assert.rejects(verifyToken(token,{...signing,config:profileConfig({app:'academy',env:'feature'}),keys}),/INVALID_SHARED_CONFIG/);
+ await assert.rejects(verifyToken(token,{...signing,keys,now:f.deadline}),/TOKEN_EXPIRED/);
+ await assert.rejects(issueToken({...claims,aud:[...claims.aud].reverse()},signing),/WRONG_AUDIENCE/);
+ await assert.rejects(issueToken({...claims,afg:f.now+1},signing),/INVALID_FOREGROUND/);
+ await assert.rejects(issueToken({...claims,sid:crypto.randomUUID()},signing),/INVALID_PARENT/);
+});
+
+test('only the shared Academy access cookie gets parent-domain scope',()=>{
+ const refresh=opaque(),cookie=ACADEMY_SHARED_COOKIE+'=shared.jwt.parts',header=cookie+'; __Host-uaa_r='+refresh;
+ const scope={access:'shared.jwt.parts',refresh,now:100,accessExpires:1000,originalExpires:20000};
+ const [access,refreshHeader]=cookiePair({...scope,app:'academy',sharedAccess:true});
+ assert(access.startsWith(cookie+'; Domain=ummabbadacademy.app; Path=/; Secure; HttpOnly; SameSite=Lax;'));
+ assert(refreshHeader.startsWith('__Host-uaa_r='));
+ assert(!refreshHeader.includes('Domain='));
+ assert.deepEqual(readCookies(header,'academy',{sharedAccess:true}),{access:'shared.jwt.parts',refresh});
+ assert.equal(readCookies('__Host-uaa_a=legacy.jwt.parts','academy',{sharedAccess:true}).access,undefined);
+ assert.equal(readSharedAcademyAccess(header),'shared.jwt.parts');
+ assert.throws(()=>readSharedAcademyAccess(cookie+'; '+cookie),/DUPLICATE_COOKIE/);
+ assert.throws(()=>readCookies(header+'; __Host-uaa_r='+refresh,'academy',{sharedAccess:true}),/DUPLICATE_COOKIE/);
+ const clears=clearCookies('academy',{sharedAccess:true});
+ assert(clears[0].startsWith(ACADEMY_SHARED_COOKIE+'=; Domain=ummabbadacademy.app;'));
+ assert(!clears[1].includes('Domain='));
+ for(const app of ['studio','hifz']){
+  assert.deepEqual(readCookies(header,app),{access:undefined,refresh:undefined});
+  assert(cookiePair({...scope,app}).every(value=>!value.includes('Domain=')));
+  assert.throws(()=>cookiePair({...scope,app,sharedAccess:true}),/INVALID_CONFIG/);
+ }
 });

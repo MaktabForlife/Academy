@@ -5,6 +5,7 @@ import {applyTargetSchema} from '../../../../AcademyStudio/tests/target-schema.m
 import {nativeSchemaSQL as studioNativeSchemaSQL} from '../../../../AcademyStudio/security/v2/native-schema.mjs';
 import {studioAuthoritySource} from '../../../backend/src/academy/v111/studio-authority-source.mjs';
 import {nativeSchemaSQL as hifzNativeSchemaSQL} from '../../../../Hifz/security/v2/native-schema.mjs';
+import {sharedEntrySchemaSQL} from '../../../../Hifz/security/v2/shared-entry.mjs';
 import {createDatabase as hifzDatabase} from '../../../../Hifz/tests/helpers/database.mjs';
 import {createNativeRuntime as academyNative} from '../native-runtime.mjs';
 import {createNativeRuntime as studioNative} from '../../../../AcademyStudio/security/v2/native-runtime.mjs';
@@ -13,11 +14,13 @@ import {createStudioV2Handler} from '../../../../AcademyStudio/src/v111-worker.m
 import {createHifzV2Handler} from '../../../../Hifz/worker/src/hifz-v2.js';
 import {dispatchNative as dispatchHifzNative} from '../../../../Hifz/worker/src/index.js';
 import {createAppRuntime} from '../runtime.mjs';
+import {createAppRuntime as createStudioRuntime} from '../../../../AcademyStudio/security/v2/runtime.mjs';
+import {createAppRuntime as createHifzRuntime} from '../../../../Hifz/security/v2/runtime.mjs';
 import {additiveSchemaSQL} from '../schema-bundle.mjs';
 import {captureDDL} from '../capture.mjs';
 import {seedPolicy} from '../policy.mjs';
 import {configuredControlGenesis} from '../control-publication.mjs';
-import {profileConfig,ORIGINS} from '../tokens.mjs';
+import {profileConfig,ORIGINS,ACADEMY_SHARED_COOKIE} from '../tokens.mjs';
 import {dependencyScope} from '../issuance-floors.mjs';
 import {Bucket} from '../test/helpers.mjs';
 import {canonical,b64u,bytes} from '../codec.mjs';
@@ -28,12 +31,30 @@ export function memoryD1(raw){
  const db={withSession(mode){if(mode!=='first-primary')throw Error('fixture requires first-primary');return db;},prepare(sql){let args=[];const st={sql,bind(...values){args=values;return st;},execute(mode){db.beforeExecute?.(sql);count(sql);const statement=raw.prepare(sql);if(mode==='first')return statement.get(...args)||null;if(mode==='all')return {success:true,results:statement.all(...args),meta:{}};if(statement.columns().length)return {success:true,results:statement.all(...args),meta:{changes:0}};const result=statement.run(...args);return {success:true,results:[],meta:{changes:Number(result.changes),last_row_id:Number(result.lastInsertRowid)}};},async first(column){const row=st.execute('first');return column?row?.[column]:row;},async all(){return st.execute('all');},async run(){return st.execute('run');}};return st;},async batch(list){metrics.batches++;raw.exec('BEGIN IMMEDIATE');try{const result=list.map(s=>s.execute('run'));raw.exec('COMMIT');return result;}catch(error){raw.exec('ROLLBACK');throw error;}}};return {db,metrics};
 }
 export class HostCookieJar{
- constructor(clock){this.clock=clock;this.hosts=new Map();}
- header(origin){const rows=this.hosts.get(origin)||new Map();return [...rows].filter(([,r])=>r.until>this.clock()).map(([name,r])=>name+'='+r.value).join('; ');}
- absorb(origin,response){let rows=this.hosts.get(origin);if(!rows){rows=new Map();this.hosts.set(origin,rows);}for(const cookie of response.headers.getSetCookie()){const [pair,...attributes]=cookie.split(';').map(x=>x.trim()),at=pair.indexOf('='),name=pair.slice(0,at),value=pair.slice(at+1),age=attributes.find(x=>/^Max-Age=/i.test(x));if(!name.startsWith('__Host-')||attributes.some(x=>/^Domain=/i.test(x))||!attributes.includes('Secure')||!attributes.includes('HttpOnly')||!attributes.includes('Path=/'))throw Error('Fixture received an unsafe auth cookie');const seconds=age?Number(age.split('=')[1]):0;if(seconds<=0)rows.delete(name);else rows.set(name,{value,until:this.clock()+seconds});}}
+ constructor(clock){this.clock=clock;this.hosts=new Map();this.shared=null;}
+ header(origin){
+  const rows=this.hosts.get(origin)||new Map();
+  const cookies=[...rows].filter(([,r])=>r.until>this.clock()).map(([name,r])=>name+'='+r.value);
+  if(this.shared?.until>this.clock()&&Object.values(ORIGINS).includes(origin))cookies.push(ACADEMY_SHARED_COOKIE+'='+this.shared.value);
+  return cookies.join('; ');
+ }
+ absorb(origin,response){
+  let rows=this.hosts.get(origin);if(!rows){rows=new Map();this.hosts.set(origin,rows);}
+  for(const cookie of response.headers.getSetCookie()){
+   const [pair,...attributes]=cookie.split(';').map(x=>x.trim()),at=pair.indexOf('='),name=pair.slice(0,at),value=pair.slice(at+1);
+   const domains=attributes.filter(x=>/^Domain=/i.test(x)),shared=name===ACADEMY_SHARED_COOKIE;
+   const validScope=shared?origin===ORIGINS.academy&&domains.length===1&&domains[0]==='Domain=ummabbadacademy.app':name.startsWith('__Host-')&&domains.length===0;
+   if(!validScope||!attributes.includes('Secure')||!attributes.includes('HttpOnly')||!attributes.includes('Path=/'))throw Error('Fixture received an unsafe auth cookie');
+   const age=attributes.find(x=>/^Max-Age=/i.test(x)),seconds=age?Number(age.split('=')[1]):0;
+   const stored={value,until:this.clock()+seconds};
+   if(shared)this.shared=seconds>0?stored:null;
+   else if(seconds<=0)rows.delete(name);
+   else rows.set(name,stored);
+  }
+ }
 }
-export async function createNativeHTTPFixture({studioAuthority='ACADEMY',prepareAcademy=null,prepareSource=null,studioSourceAuthority=true,prepareEnvironment=null}={}){
- let now=FIXTURE_NOW;const split=await splitFixture(prepareSource);if(studioSourceAuthority){for(const name of ['0006_program_monthly_subscriptions.sql','0007_program_surah_websites.sql','0008_program_surah_grants.sql','0011_website_platform.sql','0012_website_schedule_library.sql','0013_website_parallel_access.sql','0014_website_navigation.sql','0015_studio_access_admin.sql','0016_course_studio_publication.sql','0017_monthly_programme_bridge.sql','0018_completed_course_studio.sql','0019_course_policy_mirror.sql'])split.databases.core.exec(readFileSync(new URL('../../../backend/migrations/academy-core/'+name,import.meta.url),'utf8').replace(/CREATE (TABLE|INDEX|UNIQUE INDEX|TRIGGER|VIEW) (?!IF NOT EXISTS)/g,'CREATE $1 IF NOT EXISTS '));}if(prepareAcademy){if(typeof prepareAcademy!=='function')throw Error('Invalid fixture preparer');await prepareAcademy(split.databases.core,split.databases.admin);}const sub=split.actors.studentA,account=split.databases.core.prepare('SELECT * FROM accounts WHERE account_id=?').get(sub),ce=split.databases.core.prepare('SELECT credential_epoch ce FROM account_credentials WHERE account_id=?').get(sub).ce;
+export async function createNativeHTTPFixture({studioAuthority='ACADEMY',prepareAcademy=null,prepareSource=null,studioSourceAuthority=true,prepareEnvironment=null,owningRuntimes=false}={}){
+ let now=FIXTURE_NOW;const split=await splitFixture(prepareSource);if(studioSourceAuthority){for(const name of ['0006_program_monthly_subscriptions.sql','0007_program_surah_websites.sql','0008_program_surah_grants.sql','0011_website_platform.sql','0012_website_schedule_library.sql','0013_website_parallel_access.sql','0014_website_navigation.sql','0015_studio_access_admin.sql','0016_course_studio_publication.sql','0017_monthly_programme_bridge.sql','0018_completed_course_studio.sql','0019_course_policy_mirror.sql'])split.databases.core.exec(readFileSync(new URL('../../../backend/migrations/academy-core/'+name,import.meta.url),'utf8').replace(/CREATE (TABLE|INDEX|UNIQUE INDEX|TRIGGER|VIEW) (?!IF NOT EXISTS)/g,'CREATE $1 IF NOT EXISTS '));}if(prepareAcademy){if(typeof prepareAcademy!=='function')throw Error('Invalid fixture preparer');await prepareAcademy(split.databases.core,split.databases.admin,split.actors);}const sub=split.actors.studentA,account=split.databases.core.prepare('SELECT * FROM accounts WHERE account_id=?').get(sub),ce=split.databases.core.prepare('SELECT credential_epoch ce FROM account_credentials WHERE account_id=?').get(sub).ce;
  const databases={academy:split.databases.core,studio:new DatabaseSync(':memory:'),hifz:hifzDatabase()},adapters={},metrics={},runtimes={},buckets={},configs={},captures={},envs={},trace=[];
  for(const app of ['studio','hifz'])databases[app].exec('PRAGMA foreign_keys=ON');databases.hifz.exec(hifzNativeSchemaSQL);
  for(const db of Object.values(databases))db.function('unixepoch',()=>now);split.databases.admin.function('unixepoch',()=>now);
@@ -54,6 +75,7 @@ export async function createNativeHTTPFixture({studioAuthority='ACADEMY',prepare
  for(const app of ['academy','studio','hifz']){
   const raw=databases[app],registry=JSON.parse(readFileSync(new URL('../../../../'+(app==='academy'?'Academy':app==='studio'?'AcademyStudio':'Hifz')+'/security/v2/native-authority.json',import.meta.url),'utf8'));
   raw.exec(additiveSchemaSQL);
+  if(app!=='academy')raw.exec(sharedEntrySchemaSQL);
   const available=Object.fromEntries(raw.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all().map(t=>[t.name,raw.prepare('PRAGMA table_info("'+t.name+'")').all().map(c=>c.name)]));
   const ownerEpoch=app+'-native-fixture-epoch',capture=captureDDL({registry,available,ownerEpoch});raw.exec(capture.sql);captures[app]=capture;
   const dependenciesFor=value=>capture.included.map(table=>({id:app+':native:'+table,scope:registry.rules[table].accountColumn?dependencyScope(value):'GLOBAL',ownerEpoch}));
@@ -68,11 +90,12 @@ export async function createNativeHTTPFixture({studioAuthority='ACADEMY',prepare
   if(app==='studio')Object.assign(env,{PLATFORM_ENABLED:'1',WEBSITE_ORIGIN:ORIGINS.studio,ACADEMY_ORIGIN:ORIGINS.academy,ACADEMY_PORTAL_ORIGIN:ORIGINS.academy,WEBSITE_ALIAS_ORIGINS:'[]'});
   if(prepareEnvironment){if(typeof prepareEnvironment!=='function')throw Error('Invalid environment preparer');await prepareEnvironment({env,app,now});}
   const appFolder=app==='academy'?'Academy':app==='studio'?'AcademyStudio':'Hifz',loader=await import(new URL('../../../../'+appFolder+'/security/v2/runtime-config.mjs',import.meta.url));settings=await loader.loadRuntimeConfiguration(env,app);
-  const runtime=await createAppRuntime({settings,env,nativeFactory:app==='academy'?academyNative:app==='studio'?studioNative:hifzNative,clock:()=>now});runtimes[app]=runtime;
+  const createRuntime=app==='academy'||!owningRuntimes&&!settings.raw.sharedChildEntry?createAppRuntime:app==='studio'?createStudioRuntime:createHifzRuntime;
+  const runtime=await createRuntime({settings,env,nativeFactory:app==='academy'?academyNative:app==='studio'?studioNative:hifzNative,clock:()=>now});runtimes[app]=runtime;
   await seedPolicy(runtime.store,{ownerEpoch:'shared-fixture-policy',receiptRef:'fixture-policy-configured-genesis',now});
   if(app!=='academy')raw.prepare("INSERT INTO jwt_v2_event_streams VALUES('academy',?,'account-security','fixture-account-stream',0,0)").run(app);
   if(app==='academy')for(const child of ['studio','hifz'])raw.prepare("INSERT INTO jwt_v2_sender_streams VALUES(?,'account-security','fixture-account-stream',1)").run(child);
-  const appProjection={cr:1,app,env:'production',policyEpoch:'shared-fixture-policy',policyRevision:1,inactivityMinutes:90,keyRegistryEpoch:'fixture-key-epoch',keyRegistryRevision:1,withdrawnKids:[],withdrawnHandoffKids:[],handoffRegistryRevision:1,migrationFloor:2};
+  const appProjection={cr:1,app,env:'production',policyEpoch:'shared-fixture-policy',policyRevision:1,inactivityMinutes:90,keyRegistryEpoch:'fixture-key-epoch',keyRegistryRevision:1,withdrawnKids:[],withdrawnHandoffKids:[],handoffRegistryRevision:1,migrationFloor:2,...(settings.sharedAcademy?{sharedAcademyRegistryRevision:settings.sharedAcademy.revision,withdrawnSharedAcademyKids:[]}: {})};
   await configuredControlGenesis(runtime.store,{suffix:'control/app',projection:appProjection,receiptRef:'fixture-app-configured-genesis'});await runtime.cache.seed('control/app');await runtime.cache.publish('control/app',async()=>appProjection);
  }
  const nativeHandlers={studio:createStudioV2Handler({getRuntime:async()=>runtimes.studio,fetcher:async()=>{throw Error('Non-fixture outbound request blocked');}}),hifz:createHifzV2Handler({runtimeFactory:async()=>runtimes.hifz,dispatchNative:dispatchHifzNative})};

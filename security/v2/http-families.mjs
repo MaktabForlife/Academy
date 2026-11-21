@@ -3,12 +3,30 @@ import {assertCaptureReceipt} from './capture-receipt.mjs';
 import {admissionFloorGuard,restrictionPlan} from './publication.mjs';
 import {issuanceFloorGuard} from './issuance-floors.mjs';
 import {selector,requireExpected} from './http-context.mjs';
+import {academyCookiePairControl} from './academy-cookie-pair.mjs';
 
 export function initialBinding(runtime,{sub,ce,ae,le=0,psid,sid=psid,bsid,bv,s_iat,s_exp,sv=1,ue=0,capture}){
  return {ver:2,env:runtime.config.env,iss:runtime.config.origin,aud:'urn:uaa:'+runtime.config.env+':'+runtime.app+':api:v2',sub,sid,psid,bsid,bv,ce,ae,le,sv,ue,pv:capture.pv,vat:capture.vat,s_iat,s_exp};
 }
+async function fenceAcademyPairRotation(runtime,family,operationId){
+ const store=runtime.store,pair=academyCookiePairControl(family);
+ requireThat(pair&&(!pair.pendingOperation||pair.pendingOperation===operationId),'ACADEMY_PAIR_PENDING',503);
+ if(!pair.pendingOperation){
+  const [guard,clear]=store.guard("SELECT 1 FROM jwt_v2_families f JOIN jwt_v2_intents i ON i.sid=f.sid AND i.generation=f.fingerprint_generation WHERE f.sid=? AND f.cr=? AND f.state='UNLOCKED' AND f.idle_until>unixepoch() AND f.s_exp>unixepoch() AND i.intent_id=? AND i.state='ISSUED' AND i.kind='refresh' AND i.expires_at>unixepoch()",[family.sid,family.cr,operationId]);
+  await store.batch([guard,store.stmt("UPDATE jwt_v2_families SET cr=cr+1,projection_json=json_set(projection_json,'$.academyPairPending',?) WHERE sid=?",operationId,family.sid),clear]);
+ }
+ // Both the R2 fence and its owning publication receipt must precede rotation.
+ const control=await runtime.publishFamily(family.sid);
+ requireThat(control.academyPair?.pendingOperation===operationId&&control.academyPair.generation===pair.generation
+  &&control.localState==='UNLOCKED','ACADEMY_PAIR_PUBLICATION_REQUIRED',503);
+ return control.cr;
+}
+
 export async function rotateFamily(runtime,request,body){
- const current=await runtime.currentFamily(request,{allowSpent:true}),f=await runtime.observeState(current.family);
+ const current=await runtime.currentFamily(request,{allowSpent:true});
+ requireThat(current.family,'SESSION_ENDED',401);
+ const f=await runtime.observeState(current.family);
+ requireThat(!['REVOKED','EXPIRED'].includes(f.state),'SESSION_ENDED',401);
  const expected=body.expectedContext;requireThat(expected,'EXPECTED_CONTEXT_REQUIRED',409);
  const original=current.historical?JSON.parse(current.history.binding_json):JSON.parse(f.binding_json);
  requireExpected(selector(original,runtime.app),expected);
@@ -21,10 +39,11 @@ export async function rotateFamily(runtime,request,body){
  requireThat(f.state==='UNLOCKED','PIN_REQUIRED',423);
  requireThat(typeof body.qualifyingActivity==='boolean','ACTIVITY_CLASSIFICATION_REQUIRED',400);
  const capture=await runtime.nativeCapture(original),next={...original,sv:original.sv+1,pv:capture.pv,vat:capture.vat};
- const now=runtime.clock(),idleUntil=Math.min(f.s_exp,(body.qualifyingActivity?now:f.last_refresh)+f.policy_minutes*60);
  const projection=await runtime.buildProjection(next,capture,{previous:JSON.parse(f.projection_json)});
+ const pairFenceRevision=runtime.sharedAcademySessions?await fenceAcademyPairRotation(runtime,f,body.operationId):null;
+ const now=runtime.clock(),idleUntil=Math.min(f.s_exp,(body.qualifyingActivity?now:f.last_refresh)+f.policy_minutes*60);
  const deadline=Math.min(capture.vat+900,idleUntil,f.s_exp,projection.timedUntil),refresh=opaque();
- const result=await runtime.store.rotate({sid:f.sid,fingerprint:current.fingerprint,intentId:body.operationId,csrfHash:auth.csrfHash,expectedBinding:original,successorFingerprint:await fingerprint(refresh,runtime.config),nextBinding:next,nextProjection:projection,now,idleUntil,deadline,vectorGuards:capture.vectorGuards,qualifyingActivity:body.qualifyingActivity,capture,requireBarrier:runtime.app!=='academy'});
+ const result=await runtime.store.rotate({sid:f.sid,fingerprint:current.fingerprint,intentId:body.operationId,csrfHash:auth.csrfHash,expectedBinding:original,successorFingerprint:await fingerprint(refresh,runtime.config),nextBinding:next,nextProjection:projection,now,idleUntil,deadline,vectorGuards:capture.vectorGuards,qualifyingActivity:body.qualifyingActivity,capture,requireBarrier:runtime.app!=='academy',pairFenceRevision});
  requireThat(result.winner,'OPERATION_SUPERSEDED',409);
  const publication=await runtime.publishWinningFamily(f.sid);
  const family=await runtime.store.family(f.sid);
@@ -65,7 +84,8 @@ export async function beginRootFamily(runtime,{transaction,attempt,credential,cu
  const capture=await runtime.nativeCapture({sub:credential.sub,ce:credential.ce}),signedAt=runtime.clock();
  const binding=initialBinding(runtime,{sub:credential.sub,ce:credential.ce,ae:account.ae,le:account.le,psid:sid,bsid,bv,s_iat:signedAt,s_exp:signedAt+604800,capture});
  const projection=await runtime.buildProjection(binding,capture,{initialIssuance:true}),idleUntil=Math.min(binding.s_exp,signedAt+projection.inactivityMinutes*60),deadline=Math.min(capture.vat+900,idleUntil,projection.timedUntil,binding.s_exp),refresh=opaque();
- const [tg,tc]=store.guard("SELECT 1 FROM jwt_v2_http_transactions WHERE tx=? AND status='PENDING' AND operation_id=? AND expires_at>?",[transaction.tx,transaction.operation_id,now]);
+ const [tg,tc]=store.guard("SELECT 1 FROM jwt_v2_http_transactions t JOIN jwt_v2_ceremonies c USING(tx) WHERE t.tx=? AND t.operation_id=? AND t.status='PENDING' AND t.expires_at>unixepoch() AND c.pin_attempt=? AND ?>unixepoch()",
+  [transaction.tx,transaction.operation_id,attempt.attempt_id,result.expiresAt]);
  const cg=runtime.native.credentialGuard(credential),[ng,nc]=store.guard(cg.sql,cg.args);
  const [ag,ac]=store.guard('SELECT 1 FROM jwt_v2_accounts WHERE sub=? AND ce=? AND ae=? AND active=1',[binding.sub,binding.ce,binding.ae]);
  const before=[tg,ng,ag],after=[ac,nc,tc];
@@ -79,7 +99,7 @@ export async function beginRootFamily(runtime,{transaction,attempt,credential,cu
  }
  before.push(store.stmt("INSERT INTO jwt_v2_parents VALUES(?,?,?,?,?,?,?,?,?,'UNLOCKED')",sid,binding.sub,bsid,bv,binding.ce,binding.ae,signedAt,binding.s_exp,signedAt));
  before.push(store.stmt('INSERT INTO jwt_v2_browsers VALUES(?,?,?,?,0) ON CONFLICT(bsid) DO UPDATE SET bv=excluded.bv,sub=excluded.sub,psid=excluded.psid',bsid,bv,binding.sub,sid));
- after.unshift(store.stmt("UPDATE jwt_v2_http_transactions SET status='COMMITTED',result_json=? WHERE tx=?",canonical({status:'COMMITTED',sid,operationId:transaction.operation_id,s_exp:binding.s_exp}),transaction.tx));
+ after.unshift(store.stmt("UPDATE jwt_v2_http_transactions SET status='COMMITTED',result_json=? WHERE tx=?",canonical({status:'COMMITTED',attemptId:attempt.attempt_id,sid,sv:binding.sv,ue:binding.ue,operationId:transaction.operation_id,s_exp:binding.s_exp}),transaction.tx));
  await store.createFamily({binding,projection,capture,fingerprint:await fingerprint(refresh,runtime.config),now:signedAt,deadline,idleUntil,policyMinutes:projection.inactivityMinutes,vectorGuards:capture.vectorGuards},{before,after});
  let priorPending=false;if(current)try{priorPending=!await runtime.publishPending(transaction.operation_id);}catch{priorPending=true;}const publication=await runtime.publishWinningFamily(sid,{initial:true});if(priorPending)publication.cachePublication='PENDING';return {family:await store.family(sid),refresh,...publication};
 }

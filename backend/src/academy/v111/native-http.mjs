@@ -1,3 +1,4 @@
+import {withoutCookies,withoutSetCookie} from '../../../../security/v2/http-cookie-boundary.mjs';
 import {finishNativePinReset} from './native-pin-reset.mjs';
 import {academyV2HTML} from './html.mjs';
 import {bindNativeRequest} from './native-context.js';
@@ -15,7 +16,10 @@ export function createAcademyV2Handler({getRuntime,business,service=null}){
    if(url.pathname==='/api/academy/hub/config'&&request.method==='GET')return Response.json({authVersion:2,app:'academy',academyOrigin:origin,studioOrigin:'https://worshipuponbaseera.ummabbadacademy.app',hifzOrigin:'https://mahadarwa-hifz.ummabbadacademy.app',authorityMode:'ACADEMY',nativePortal:true},{headers:{'Cache-Control':'no-store'}});
    const publishedAttachment=['/api/academy/announcements/image','/api/academy/announcements/pdf'].includes(url.pathname)&&url.searchParams.get('draft')!=='1'&&(url.searchParams.has('asset')||url.searchParams.has('id'));
    const publicRead=['GET','HEAD'].includes(request.method)&&(['/api/academy/progress/preview','/api/academy/header-date','/api/academy/pdf-tools/defaults','/api/academy/profile-labels-version','/api/academy/entrance/public-snapshot','/api/academy/enrolment/catalogue','/api/academy/open-library/metadata/public','/api/academy/open-library/metadata/cover','/api/academy/announcements/published','/api/academy/media-playlist-card-image'].includes(url.pathname)||publishedAttachment);
-   if(!url.pathname.startsWith('/api/')||publicRead)return academyV2HTML(request,env,await business(request,env,ctx));
+   if(!url.pathname.startsWith('/api/')||publicRead){
+    const publicRequest=withoutCookies(request);
+    return academyV2HTML(publicRequest,env,withoutSetCookie(await business(publicRequest,env,ctx)));
+   }
    const action=['GET','HEAD'].includes(request.method)?'read':'write',cap=await runtime.authorise(request,{action});
    bindNativeRequest(request,{runtime,cap,env});let response=await business(request,env,ctx);
    if(request.method==='POST'&&url.pathname==='/api/admin/platform/user-profiles/save'&&response.ok){const value=await response.clone().json();if(value.reset===true){const result=await finishNativePinReset(runtime,value);response=Response.json(result,{status:result.securityPublication==='PENDING'?202:response.status,headers:response.headers});}}

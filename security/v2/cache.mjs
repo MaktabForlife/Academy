@@ -3,6 +3,7 @@ import {coversFloor} from './floors.mjs';
 import {canonical,strictJSON,requireThat,reject,safeInt,uuid,sha256,hex,bytes,vectorDigest,equal,digest} from './codec.mjs';
 import {controlShape} from './control-shapes.mjs';
 import {verifyToken,preverifyAPI,BINDING} from './tokens.mjs';
+import {academyCookiePairControl,requireAcademyCookiePair} from './academy-cookie-pair.mjs';
 export const MAX_CONTROL_BYTES=16384;
 const verifiedPayloads=new WeakMap();
 function immutable(value){if(value&&typeof value==='object'){for(const item of Object.values(value))immutable(item);Object.freeze(value);}return value;}
@@ -86,6 +87,7 @@ export class SecurityCache {
   if(suffix.startsWith('security/session/')){
    const primary=await this.store.family(suffix.slice('security/session/'.length));
    requireThat(primary&&primary.cr===committed.cr&&primary.binding_json===canonical(committed.binding)&&primary.state===committed.localState&&primary.deadline===committed.validationDeadline&&primary.idle_until===committed.idleUntil&&Boolean(primary.authority_ready)===committed.authorityReady,'UNCOMMITTED_SECURITY_PROJECTION',409);
+   if(this.store.app==='academy')requireThat(canonical(committed.academyPair??null)===canonical(academyCookiePairControl(primary)),'UNCOMMITTED_ACADEMY_PAIR_CONTROL',409);
    if(committed.localState==='UNLOCKED'&&committed.authorityReady){
     const saved=JSON.parse(primary.projection_json);
     requireThat(safeInt(committed.timedUntil)&&committed.timedUntil<=Math.min(primary.s_exp,saved.timedUntil??primary.s_exp),'UNCOMMITTED_TIMED_BOUND',409);
@@ -113,13 +115,15 @@ export class SecurityCache {
   requireThat(written,'PUBLICATION_RETRY',409);
   await this.store.published(key,candidate.cr,{cr:candidate.cr,nonce:candidate.publicationNonce,incarnation:candidate.incarnation,generation:candidate.generation,digest:await digest(candidate),etag:written.etag});return candidate;
  }
- async authorise({token,sessionKey,config,keys,now,rightsMemo=new Map(),resourceKeys=[],action}){
-  const verified=await preverifyAPI(token,{config,keys,now});
+ async authorise({token,sessionKey,config,keys,now,rightsMemo=new Map(),resourceKeys=[],action,profile='api',refreshFingerprint,updateGeneration}){
+  const verified=await preverifyAPI(token,{config,keys,now,profile});
   requireThat(verified.sid===sessionKey,'SECURITY_SELECTOR_MISMATCH');
   const app=(await this.read('control/app')).value;
   requireThat(!app.withdrawnKids.includes(verified.kid),'UNTRUSTED_KEY');
   const session=(await this.read('security/session/'+sessionKey)).value;
   requireThat(app.app===config.app&&app.env===config.env&&session.app===config.app&&session.env===config.env,'WRONG_SECURITY_NAMESPACE');
+  requireThat(!['REVOKED','EXPIRED'].includes(session.localState),'SESSION_ENDED',401);
+  requireThat(updateGeneration===undefined||session.updateGeneration===updateGeneration,'SESSION_ENDED',401);
   requireThat(session.localState==='UNLOCKED','SESSION_NOT_UNLOCKED',['LOCKED','ADMITTED_LOCKED'].includes(session.localState)?423:401);
   requireThat(session.authorityReady,'PERMISSIONS_REFRESH_REQUIRED',503);
   requireThat(typeof action==='string'&&action.length>0,'ACTION_CONTEXT_REQUIRED',503);
@@ -127,7 +131,8 @@ export class SecurityCache {
   requireThat(!session.deniedActions.includes(action),'ACCESS_DENIED',403);
   requireThat(now<Math.min(session.validationDeadline,session.idleUntil,session.s_exp),'LEASE_EXPIRED');
   requireThat(session.policyEpoch===app.policyEpoch&&session.policyRevision===app.policyRevision&&session.keyRegistryEpoch===app.keyRegistryEpoch&&session.keyRegistryRevision===app.keyRegistryRevision,'SECURITY_RECONCILIATION_REQUIRED',503);
-  const claims=await verifyToken(token,{config,keys,preverified:verified,withdrawn:new Set(app.withdrawnKids||[]),projection:session.binding,now,idleUntil:session.idleUntil,timedUntil:session.timedUntil,initial:session.initialIssuance===true});
+  if(profile==='shared')requireAcademyCookiePair(session,refreshFingerprint);
+  const claims=await verifyToken(token,{config,keys,profile,preverified:verified,withdrawn:new Set(app.withdrawnKids||[]),projection:session.binding,now,idleUntil:session.idleUntil,timedUntil:session.timedUntil,initial:session.initialIssuance===true});
   requireThat(claims.ver>=app.migrationFloor,'TOKEN_FORMAT_RETIRED');
   requireThat(claims.exp<=session.validationDeadline,'INVALID_VALIDATION_DEADLINE');
   requireThat(session.binding.pv===await vectorDigest(session.ownerVector),'VECTOR_MISMATCH');

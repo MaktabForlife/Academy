@@ -1,3 +1,4 @@
+import {requireVerifiedUpdateBoundary,requireFamilyUpdateGeneration} from './update-boundary.mjs';
 import {privateStreamDeadline} from './stream-deadline.mjs';
 import {compactFloors} from './floors.mjs';
 import {RightsMemo} from './rights-memo.mjs';
@@ -6,7 +7,8 @@ import {canonical,strictJSON,requireThat,reject,uuid,safeInt,unb64u,bytes,digest
 import {loadRuntimeConfiguration} from './runtime-config.mjs';
 import {PrimaryStore} from './store.mjs';
 import {SecurityCache} from './cache.mjs';
-import {issueToken,readCookies,cookiePair,refreshOnlyCookie} from './tokens.mjs';
+import {issueToken,readCookies,cookiePair,refreshOnlyCookie,ACADEMY_SHARED_AUDIENCES} from './tokens.mjs';
+import {academyCookiePairControl,requireAcademyCookiePair,SHARED_PAIR_MODE} from './academy-cookie-pair.mjs';
 import {privateJSON,browserBody,verifyBootstrap} from './browser-security.mjs';
 import {HTTPIntents,selector,expectedContext,requireExpected,decorateResponse} from './http-context.mjs';
 import {admissionFloorGuard,markSessionCovered,worksetApplied} from './publication.mjs';
@@ -22,6 +24,7 @@ export class AppRuntime {
   this.store=new PrimaryStore(settings.db,{app:this.app,env:this.config.env,dependencyManifest:settings.dependenciesFor,dependencyRegistry:settings.dependencies,securityPrefix:settings.prefix});
   this.cache=new SecurityCache({bucket:settings.bucket,store:this.store,prefix:settings.prefix,generation:settings.raw.generation});
   Object.defineProperty(this,'ceremonies',{get:async()=>{const {academyCeremonies}=await import('./http-pin.mjs');return academyCeremonies(this);}});
+  this.sharedAcademySessions=this.app==='academy'&&settings.sharedAcademySessions===true;
   this.intents=new HTTPIntents({store:this.store,config:this.config,csrf:settings.csrf,clock});this.rightsMemo=new RightsMemo();
  }
  async ensureDependencies(sub){
@@ -40,7 +43,8 @@ export class AppRuntime {
  async appControl(){return (await this.cache.read('control/app')).value;}
  async buildProjection(binding,capture,{initialIssuance=false,previous={}}={}){
   const app=await this.appControl(),rightsHash=await digest(capture.rights),subjectHash=await digest({env:this.config.env,app:this.app,sub:binding.sub});
-  requireThat(!app.withdrawnKids.includes(this.settings.apiKid),'CURRENT_SIGNING_KEY_WITHDRAWN',503);
+  const signingKid=this.sharedAcademySessions?this.settings.sharedAcademy.kid:this.settings.apiKid;
+  requireThat(!app.withdrawnKids.includes(signingKid),'CURRENT_SIGNING_KEY_WITHDRAWN',503);
   const rightsKey=this.settings.prefix+'rights/'+subjectHash+'/'+binding.pv+'/'+rightsHash;
   const raw=canonical(capture.rights);requireThat(bytes(raw).length<=2*1024*1024,'RIGHTS_PARTITION_REQUIRED',503);
   const prior=await this.settings.bucket.get(rightsKey);
@@ -49,7 +53,8 @@ export class AppRuntime {
   requireThat(stored&&stored.size<=2*1024*1024,'RIGHTS_PAYLOAD_UNAVAILABLE',503);
   const persisted=new Uint8Array(await stored.arrayBuffer());
   requireThat(hex(await sha256(persisted))===rightsHash,'RIGHTS_PAYLOAD_CORRUPT',503);
-  return {...previous,binding,ownerVector:capture.ownerVector,rightsKey,rightsHash,deniedActions:previous.deniedActions||[],timedUntil:Math.min(binding.s_exp,capture.timedUntil),policyEpoch:app.policyEpoch,policyRevision:app.policyRevision,inactivityMinutes:app.inactivityMinutes,keyRegistryEpoch:app.keyRegistryEpoch,keyRegistryRevision:app.keyRegistryRevision,handoffRegistryRevision:app.handoffRegistryRevision??0,withdrawnHandoffKids:app.withdrawnHandoffKids||[],initialIssuance};
+  const updateGeneration=this.settings.raw.offlineUpdate?.generation;
+  return {...previous,...(updateGeneration===undefined?{}:{updateGeneration}),...(this.sharedAcademySessions?{academyPairMode:SHARED_PAIR_MODE,academyPairPending:null}:{}),binding,ownerVector:capture.ownerVector,rightsKey,rightsHash,deniedActions:previous.deniedActions||[],timedUntil:Math.min(binding.s_exp,capture.timedUntil),policyEpoch:app.policyEpoch,policyRevision:app.policyRevision,inactivityMinutes:app.inactivityMinutes,keyRegistryEpoch:app.keyRegistryEpoch,keyRegistryRevision:app.keyRegistryRevision,handoffRegistryRevision:app.handoffRegistryRevision??0,withdrawnHandoffKids:app.withdrawnHandoffKids||[],initialIssuance};
  }
  async publishFamily(sid,{initial=false}={}){
   const f=await this.store.family(sid);requireThat(f,'SESSION_ENDED',401);
@@ -60,29 +65,46 @@ export class AppRuntime {
   const restrictions=await this.store.all('SELECT w.target_json FROM jwt_v2_publications p JOIN jwt_v2_worksets w ON w.work_id=p.work_id WHERE p.sid=?',sid);
   const enforcedTargets=compactFloors([...(saved.enforcedTargets||[]),...restrictions.map(r=>JSON.parse(r.target_json))]);
   if(!await this.store.lifecycle(this.cache.key(suffix))){requireThat(initial&&f.sv===1&&f.fingerprint_generation===1&&f.cr===1,'SECURITY_INITIAL_PUBLICATION_REQUIRED',503);await this.cache.seed(suffix);}
-  return this.cache.publish(suffix,async()=>({...saved,enforcedTargets,app:this.app,env:this.config.env,cr:f.cr,binding:parseBinding(f),localState:f.state,authorityReady:Boolean(f.authority_ready),validationDeadline:f.deadline,idleUntil:f.idle_until,lastRefresh:f.last_refresh,s_exp:f.s_exp,inactivityMinutes:f.policy_minutes}));
+  const academyPair=this.app==='academy'?academyCookiePairControl(f):null;
+  const published={...saved};
+  delete published.academyPairPending;
+  delete published.academyPairMode;
+  return this.cache.publish(suffix,async()=>({...published,...(academyPair?{academyPair}:{}),enforcedTargets,app:this.app,env:this.config.env,cr:f.cr,binding:parseBinding(f),localState:f.state,authorityReady:Boolean(f.authority_ready),validationDeadline:f.deadline,idleUntil:f.idle_until,lastRefresh:f.last_refresh,s_exp:f.s_exp,inactivityMinutes:f.policy_minutes}));
  }
  async pendingPublication(sid){const life=await this.store.lifecycle(this.cache.key('security/session/'+sid)),f=await this.store.family(sid);return Boolean(life&&f&&(life.state==='SEED'||life.semantic_revision<f.cr));}
  async publishWinningFamily(sid,{initial=false}={}){try{await this.publishFamily(sid,{initial});return {cachePublication:'READY'};}catch(error){if(error.code&&!['SECURITY_TRANSPORT_UNAVAILABLE','PUBLICATION_RETRY','SECURITY_SEED_UNCONFIRMED'].includes(error.code))throw error;return {cachePublication:'PENDING'};}}
  async currentFamily(request,{allowSpent=false}={}){
-  const cookies=readCookies(request.headers.get('Cookie'),this.app);
+  const cookies=readCookies(request.headers.get('Cookie'),this.app,{sharedAccess:this.sharedAcademySessions});
   requireThat(cookies.refresh,'SESSION_ENDED',401);
   const fp=await fingerprint(cookies.refresh,this.config);
   const family=await this.store.first('SELECT * FROM jwt_v2_families WHERE fingerprint=?',fp);
-  if(family)return {family,fingerprint:fp,cookies,historical:false};
+  if(family){
+   requireFamilyUpdateGeneration(this,family);
+   if(this.sharedAcademySessions)requireThat(academyCookiePairControl(family),'SESSION_ENDED',401);
+   return {family,fingerprint:fp,cookies,historical:false};
+  }
   if(allowSpent){
    const history=await this.store.first('SELECT * FROM jwt_v2_refresh_history WHERE fingerprint=? AND s_exp>?',fp,this.clock());
-   if(history)return {family:await this.store.family(history.sid),fingerprint:fp,cookies,historical:true,history};
+   if(history){
+    const priorFamily=await this.store.family(history.sid);
+    requireFamilyUpdateGeneration(this,priorFamily);
+    if(this.sharedAcademySessions)requireThat(priorFamily&&academyCookiePairControl(priorFamily),'SESSION_ENDED',401);
+    return {family:priorFamily,fingerprint:fp,cookies,historical:true,history};
+   }
   }
   reject('SESSION_ENDED',401);
  }
  async authorise(request,{action='read',resourceKeys=[],authPurpose=null,operationId=null}={}){
   requireThat(safeActions.has(action)&&new URL(request.url).origin===this.config.origin,'WRONG_PUBLIC_ORIGIN',403);
-  const cookies=readCookies(request.headers.get('Cookie'),this.app);requireThat(cookies.access,'ACCESS_REFRESH_REQUIRED',401);
-  const sid=accessSID(cookies.access);
+  const sharedAccess=this.sharedAcademySessions,cookies=readCookies(request.headers.get('Cookie'),this.app,{sharedAccess});
+  requireThat(cookies.access&&(!sharedAccess||cookies.refresh),'ACCESS_REFRESH_REQUIRED',401);
+  const sid=accessSID(cookies.access),profile=sharedAccess?'shared':'api',keys=sharedAccess?this.settings.sharedAcademy.keys:this.settings.apiKeys;
+  const refreshFingerprint=sharedAccess?await fingerprint(cookies.refresh,this.config):undefined;
   let verified;
-  try{verified=await this.cache.authorise({token:cookies.access,sessionKey:sid,config:this.config,keys:this.settings.apiKeys,now:this.clock(),rightsMemo:this.rightsMemo,resourceKeys,action});}
+  try{verified=await this.cache.authorise({token:cookies.access,sessionKey:sid,config:this.config,keys,now:this.clock(),rightsMemo:this.rightsMemo,resourceKeys,action,profile,refreshFingerprint,updateGeneration:this.settings.raw.offlineUpdate?.generation});}
   catch(error){
+   // Legacy recovery proves an access token, not the refresh generation of a shared pair.
+   if(sharedAccess)throw error;
    const transportPending=error.code==='SECURITY_TRANSPORT_UNAVAILABLE'&&await this.pendingPublication(sid);
    if(transportPending||['SECURITY_PUBLICATION_PENDING','SECURITY_BINDING_CHANGED','INVALID_VALIDATION_TIME','INVALID_LEASE','LEASE_EXPIRED','SESSION_NOT_UNLOCKED','PERMISSIONS_REFRESH_REQUIRED','SECURITY_RECONCILIATION_REQUIRED','ACCESS_DENIED'].includes(error.code)){const {recoverPendingAuthority}=await import('./runtime-pending.mjs');verified=await recoverPendingAuthority(this,{token:cookies.access,sid,resourceKeys,action});}
    else if(!['SECURITY_TRANSPORT_UNAVAILABLE','RIGHTS_PAYLOAD_UNAVAILABLE','RIGHTS_PAYLOAD_CORRUPT','RIGHTS_PAYLOAD_TRANSPORT_UNAVAILABLE'].includes(error.code))throw error;
@@ -142,7 +164,30 @@ export class AppRuntime {
   const business=state==='UNLOCKED'&&now<Math.min(family.deadline,family.idle_until,family.s_exp)?await this.intents.issue(family,'business'):null;
   return {contractVersion:2,success:true,serverNowMs:now*1000,state,authorityReady:Boolean(family.authority_ready),replacementRequired:state==='UNLOCKED'&&!family.authority_ready,context,expectedContext:context,env:this.config.env,draftGeneration:1,originalExpiresAtMs:family.s_exp*1000,idleUntilMs:family.idle_until*1000,validatedAtMs:family.vat*1000,validationDeadlineMs:family.deadline*1000,...auth,...(business?{csrfByPurpose:{business:business.csrf},businessIntent:business.intent}: {})};
  }
+ async sharedAcademyCookieResponse(family,refresh,value){
+  requireThat(value.cachePublication==='READY','ACADEMY_PAIR_PUBLICATION_REQUIRED',503);
+  const suffix='security/session/'+family.sid;
+  const [app,{value:control}]=await Promise.all([this.appControl(),this.cache.read(suffix)]);
+  const pair=requireAcademyCookiePair(control,await fingerprint(refresh,this.config));
+  const {kid,signingKey}=this.settings.sharedAcademy,now=this.clock(),binding=parseBinding(family);
+  requireThat(control.cr===family.cr&&canonical(control.binding)===family.binding_json
+   &&pair.generation===family.fingerprint_generation&&control.localState==='UNLOCKED'
+   &&control.authorityReady&&now<Math.min(control.validationDeadline,control.idleUntil,control.timedUntil,control.s_exp)
+   &&!app.withdrawnKids.includes(kid),'TOKEN_ISSUANCE_UNAVAILABLE',503);
+  const parent=await this.store.first("SELECT foreground_at FROM jwt_v2_parents WHERE psid=? AND sub=? AND bsid=? AND bv=? AND ce=? AND ae=? AND state='UNLOCKED'",binding.psid,binding.sub,binding.bsid,binding.bv,binding.ce,binding.ae);
+  requireThat(safeInt(parent?.foreground_at),'ACADEMY_FOREGROUND_REQUIRED',503);
+  const access=await issueToken({...binding,aud:ACADEMY_SHARED_AUDIENCES,afg:parent.foreground_at,iat:now,exp:family.deadline,jti:crypto.randomUUID()},{
+   profile:'shared',config:this.config,key:signingKey,kid,now,idleUntil:family.idle_until,timedUntil:control.timedUntil,initial:control.initialIssuance===true
+  });
+  const current=primaryWriteCondition({binding,app:this.app,env:this.config.env,now:this.clock(),kid});
+  requireThat(await this.store.first(current.sql+' AND f.cr=? AND f.fingerprint_generation=?',...current.args,control.cr,pair.generation),'ACADEMY_PAIR_PUBLICATION_REQUIRED',503);
+  const response=this.json(value);
+  for(const cookie of cookiePair({app:this.app,sharedAccess:true,access,refresh,now,accessExpires:family.deadline,originalExpires:family.s_exp}))response.headers.append('Set-Cookie',cookie);
+  return response;
+ }
  async cookieResponse(family,refresh,value){
+  requireFamilyUpdateGeneration(this,family);
+  if(this.sharedAcademySessions)return this.sharedAcademyCookieResponse(family,refresh,value);
   let app;if(value.cachePublication==='PENDING'){const {validateWinningPair}=await import('./runtime-pending.mjs');const eligible=await validateWinningPair(this,{family,refresh});family=eligible.family;app=eligible.app;}else app=await this.appControl();const now=this.clock(),binding=parseBinding(family),saved=JSON.parse(family.projection_json);
   if(family.state==='ADMITTED_LOCKED'){const response=this.json(value);response.headers.append('Set-Cookie',refreshOnlyCookie({app:this.app,refresh,now,originalExpires:family.s_exp}));return response;}
   requireThat(family.state==='UNLOCKED'&&family.authority_ready===1&&now<Math.min(family.deadline,family.idle_until,saved.timedUntil,family.s_exp)&&!app.withdrawnKids.includes(this.settings.apiKid),'TOKEN_ISSUANCE_UNAVAILABLE',503);
@@ -157,6 +202,7 @@ export class AppRuntime {
   if(!path.startsWith('/auth/v2/')&&!path.startsWith('/internal/auth/v2/'))return null;
   try{
    requireThat(new URL(request.url).origin===this.config.origin,'WRONG_PUBLIC_ORIGIN',403);
+   if(path.startsWith('/auth/v2/'))await requireVerifiedUpdateBoundary(this);
    const {handleAuthHTTP}=await import('./http-auth.mjs');
    return await handleAuthHTTP(this,request,ctx);
   }catch(error){
@@ -168,6 +214,7 @@ export class AppRuntime {
 }
 export async function createAppRuntime({settings,env,nativeFactory,clock}){
  const runtime=new AppRuntime({settings,env,clock,native:null});
+ if(env.UAA_V111_CUTOVER==='active')await requireVerifiedUpdateBoundary(runtime);
  requireThat(typeof nativeFactory==='function','NATIVE_RUNTIME_FACTORY_REQUIRED',503);
  runtime.native=await nativeFactory({env,store:runtime.store,clock:runtime.clock,dependenciesFor:settings.dependenciesFor,ensureDependencies:sub=>runtime.ensureDependencies(sub)});
  requireThat(runtime.native&&['identity','mappingGuard','capture','draftGuard'].every(k=>typeof runtime.native[k]==='function'),'NATIVE_RUNTIME_ADAPTER_REQUIRED',503);
@@ -177,7 +224,14 @@ export async function runtimeFor(env,{app,nativeFactory,clock}={}){
  requireThat(env&&typeof env==='object','V2_RUNTIME_CONFIGURATION_REQUIRED',503);
  let map=instances.get(env);if(!map){map=new Map();instances.set(env,map);}
  if(!map.has(app)){
-  const promise=(async()=>{const settings=await loadRuntimeConfiguration(env,app);const factory=nativeFactory||(await import('./native-runtime.mjs')).createNativeRuntime;return createAppRuntime({settings,env,nativeFactory:factory,clock});})();
+  const promise=(async()=>{
+   const settings=await loadRuntimeConfiguration(env,app);
+   if(settings.raw.sharedAcademySessions||settings.raw.sharedChildEntry){
+    requireThat(settings.raw.offlineUpdate,'OFFLINE_UPDATE_CONFIGURATION_REQUIRED',503);
+   }
+   const factory=nativeFactory||(await import('./native-runtime.mjs')).createNativeRuntime;
+   return createAppRuntime({settings,env,nativeFactory:factory,clock});
+  })();
   map.set(app,promise);promise.catch(()=>map.delete(app));
  }
  return map.get(app);

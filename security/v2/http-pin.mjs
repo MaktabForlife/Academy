@@ -1,11 +1,11 @@
 import {AcademyCeremonies} from './ceremonies.mjs';
 import {HTTPTransactions} from './http-transactions.mjs';
-import {canonical,requireThat,digest,uuid} from './codec.mjs';
+import {canonical,requireThat,digest,uuid,exact,equal} from './codec.mjs';
 import {selector,requireExpected,expectedContext} from './http-context.mjs';
-import {beginRootFamily,initialBinding} from './http-families.mjs';
+import {beginRootFamily,initialBinding,browserOutboxPlan} from './http-families.mjs';
 import {assertCaptureReceipt} from './capture-receipt.mjs';
 import {issuanceFloorGuard} from './issuance-floors.mjs';
-import {admissionFloorGuard} from './publication.mjs';
+import {admissionFloorGuard,restrictionPlan} from './publication.mjs';
 
 const pinRequests=new WeakMap(),services=new WeakMap();
 export function markPINRequest(request,{tx,csrfHash}){pinRequests.set(request,{tx,csrfHash});}
@@ -80,6 +80,90 @@ export async function pinBootstrap(runtime,request,body){
  return runtime.json({...state,...await transactions.dto(transaction),attemptId:attempt.attemptId,setupRequired:!JSON.parse(transaction.payload_json).setupComplete});
 }
 
+async function checkedPinObservation(runtime,request,body){
+ requireThat(runtime.app==='academy'&&runtime.sharedAcademySessions,'UNKNOWN_AUTH_PATH',404);
+ exact(body,['tx','operationId','attemptId','expectedContext']);
+ requireThat(uuid(body.attemptId),'UNISSUED_PIN_ATTEMPT',403);
+ const transactions=new HTTPTransactions(runtime),{row,csrfHash}=await transactions.verify(request,body,'pin',{allowCommitted:true,statusWindow:300});
+ const payload=JSON.parse(row.payload_json);
+ requireThat(!payload.journeyTx&&['signin','unlock'].includes(payload.mode),'UNKNOWN_AUTH_PATH',404);
+ const attempt=await runtime.store.first('SELECT * FROM jwt_v2_ceremony_attempts WHERE tx=? AND attempt_id=? AND sub=?',row.tx,body.attemptId,row.sub);
+ requireThat(attempt&&equal(attempt.csrf_hash,csrfHash),'UNISSUED_PIN_ATTEMPT',403);
+ const result=attempt.result_json&&JSON.parse(attempt.result_json);
+ return {row,attempt,result};
+}
+
+async function observedPinHolder(runtime,request){
+ let current;
+ try{current=await runtime.currentFamily(request);}catch(error){if(error.code!=='SESSION_ENDED')throw error;}
+ return current&&!['REVOKED','EXPIRED'].includes(current.family.state)&&runtime.clock()<current.family.s_exp?current:null;
+}
+
+export async function pinStatus(runtime,request,body){
+ const {row,attempt,result}=await checkedPinObservation(runtime,request,body);
+ const response=(outcome,extra={})=>runtime.json({success:true,context:null,operationId:row.operation_id,outcome,...extra});
+ if(row.status==='COMMITTED'){
+  const receipt=row.result_json&&JSON.parse(row.result_json);
+  requireThat(result?.status==='VERIFIED'&&receipt.attemptId===attempt.attempt_id,'UNISSUED_PIN_ATTEMPT',403);
+  if(receipt.recoveryId){
+   const work=await runtime.store.first('SELECT state FROM jwt_v2_worksets WHERE work_id=?',receipt.recoveryId);
+   return response(work?.state==='APPLIED'?'ATTEMPT_ENDED':'COMMITTED_UNCONFIRMED');
+  }
+  const holder=await observedPinHolder(runtime,request);
+  if(!holder)return response('COMMITTED_UNCONFIRMED');
+  const f=holder.family;
+  if(f.sid!==receipt.sid||f.sub!==row.sub||f.s_exp!==receipt.s_exp||f.sv<receipt.sv||f.ue!==receipt.ue)
+   return response('SUPERSEDED');
+  const context=selector(JSON.parse(f.binding_json),runtime.app);
+  // The request carries the historical selector to authenticate the attempt.
+  // Check the actual installed pair independently of that selector.
+  const headers=new Headers();
+  headers.set('Cookie',request.headers.get('Cookie'));
+  try{
+   const cap=await runtime.authorise(new Request(runtime.config.origin+'/auth/v2/pin/status',{headers}));
+   requireExpected(context,cap.context);
+  }catch(error){
+   if(error.status===401&&f.state==='UNLOCKED'&&runtime.clock()<Math.min(f.idle_until,f.s_exp))
+    return response('REFRESH_CURRENT',{context});
+   if(error.status>=500)throw error;
+   return response('COMMITTED_UNCONFIRMED');
+  }
+  return response('INSTALLED_CURRENT',{context});
+ }
+ if(result?.status==='WRONG_PIN'||result?.status==='PIN_PAUSED')
+  return response('REJECTED',{code:result.status,pausedUntilMs:(result.pausedUntil||0)*1000});
+ const deadline=Math.min(row.expires_at,attempt.expires_at,result?.status==='VERIFIED'?result.expiresAt:Infinity);
+ if(runtime.clock()>=deadline||attempt.status==='CANCELLED'||result?.status==='UNAVAILABLE')
+  return response('ATTEMPT_ENDED');
+ return response('PENDING',{expiresAtMs:deadline*1000});
+}
+
+export async function restartPin(runtime,request,body){
+ const {row,attempt,result}=await checkedPinObservation(runtime,request,body);
+ const store=runtime.store,receipt=row.result_json&&JSON.parse(row.result_json);
+ requireThat(row.status==='COMMITTED'&&result?.status==='VERIFIED'&&receipt?.attemptId===attempt.attempt_id,'PIN_RESTART_NOT_READY',409);
+ requireThat(!await observedPinHolder(runtime,request),'PIN_CHECK_CURRENT_SESSION',409);
+ let recoveryId=receipt.recoveryId;
+ if(!recoveryId){
+  const family=await store.family(receipt.sid),now=runtime.clock();
+  requireThat(family&&family.sub===row.sub&&family.sv===receipt.sv&&family.ue===receipt.ue&&family.s_exp===receipt.s_exp,'OPERATION_SUPERSEDED',409);
+  recoveryId=crypto.randomUUID();
+  const target={type:'browser',bsid:family.bsid,maxBv:family.bv};
+  const [tx,txClear]=store.guard("SELECT 1 FROM jwt_v2_http_transactions WHERE tx=? AND status='COMMITTED' AND result_json=?",
+   [row.tx,row.result_json]);
+  const [familyGuard,familyClear]=store.guard("SELECT 1 FROM jwt_v2_families f JOIN jwt_v2_browsers b USING(bsid) WHERE f.sid=? AND f.binding_json=? AND b.bv=f.bv AND b.psid=f.psid AND b.sub=f.sub",
+   [family.sid,family.binding_json]);
+  await store.batch([tx,familyGuard,...await restrictionPlan(store,{workId:recoveryId,target,sub:family.sub,now}),
+   store.stmt("UPDATE jwt_v2_browsers SET cancelled_through=max(cancelled_through,?) WHERE bsid=?",family.bv,family.bsid),
+   store.stmt("UPDATE jwt_v2_parents SET state='REVOKED' WHERE psid=? AND state IN('UNLOCKED','LOCKED')",family.psid),
+   ...await browserOutboxPlan(runtime,{target,sub:family.sub,operationId:recoveryId,now}),
+   store.stmt("UPDATE jwt_v2_http_transactions SET result_json=? WHERE tx=?",canonical({...receipt,recoveryId}),row.tx),
+   familyClear,txClear]);
+ }
+ requireThat(await runtime.publishPending(recoveryId),'PIN_RESTART_PUBLICATION_PENDING',503);
+ return runtime.json({success:true,context:null,operationId:row.operation_id,outcome:'ATTEMPT_ENDED'});
+}
+
 export async function submitPIN(runtime,request,body,{setup=false}={}){
  const transactions=new HTTPTransactions(runtime),auth=await transactions.verify(request,body,setup?'pin/setup':'pin',{allowCommitted:true});
  const transaction=auth.row;
@@ -124,11 +208,13 @@ async function unlockAcademy(runtime,{transaction,attempt,credential,current}){
  const capture=await runtime.nativeCapture(original),binding={...original,sv:old.sv+1,ue:old.ue+1,pv:capture.pv,vat:capture.vat};
  const projection=await runtime.buildProjection(binding,capture,{previous:JSON.parse(old.projection_json)}),idleUntil=Math.min(old.s_exp,now+projection.inactivityMinutes*60),deadline=Math.min(binding.vat+900,idleUntil,projection.timedUntil),refresh=(await import('./codec.mjs')).opaque(),fp=await (await import('./codec.mjs')).fingerprint(refresh,runtime.config);
  await assertCaptureReceipt({capture,binding,projection,guards:capture.vectorGuards,manifest:runtime.settings.dependenciesFor(binding.sub),app:runtime.app,env:runtime.config.env,now});
- const native=runtime.native.credentialGuard(credential),[ng,nc]=store.guard(native.sql,native.args),[tg,tc]=new HTTPTransactions(runtime).guard(transaction);
+ const native=runtime.native.credentialGuard(credential),[ng,nc]=store.guard(native.sql,native.args);
+ const [tg,tc]=store.guard("SELECT 1 FROM jwt_v2_http_transactions t JOIN jwt_v2_ceremonies c USING(tx) WHERE t.tx=? AND t.operation_id=? AND t.status='PENDING' AND t.expires_at>unixepoch() AND c.pin_attempt=? AND ?>unixepoch()",
+  [transaction.tx,transaction.operation_id,attempt.attempt_id,proof.expiresAt]);
  const [g,c]=store.guard("SELECT 1 FROM jwt_v2_families f JOIN jwt_v2_accounts a USING(sub) JOIN jwt_v2_browsers b USING(bsid) WHERE f.sid=? AND f.fingerprint=? AND f.binding_json=? AND f.state IN('LOCKED','ADMITTED_LOCKED') AND f.s_exp>? AND a.active=1 AND a.ce=f.ce AND a.ae=f.ae AND a.le=f.le AND b.bv=f.bv AND b.cancelled_through<f.bv",[old.sid,current.fingerprint,old.binding_json,now]);
  const floor=admissionFloorGuard(store,binding),issuance=issuanceFloorGuard(store,{binding,projection,vectorGuards:capture.vectorGuards,existingSid:old.sid,now});
  const vectors=capture.vectorGuards.map(args=>store.guard('SELECT 1 FROM jwt_v2_dependencies WHERE id=? AND scope=? AND owner_epoch=? AND revision=?',args));
- const safe={status:'COMMITTED',sid:old.sid,sv:binding.sv,ue:binding.ue,le:binding.le,s_exp:binding.s_exp,state:'UNLOCKED',operationId:transaction.operation_id};
+ const safe={status:'COMMITTED',attemptId:attempt.attempt_id,sid:old.sid,sv:binding.sv,ue:binding.ue,le:binding.le,s_exp:binding.s_exp,state:'UNLOCKED',operationId:transaction.operation_id};
  await store.batch([tg,ng,g,floor[0],...vectors.map(v=>v[0]),
   store.stmt("INSERT INTO jwt_v2_ceremony_pending(tx,purpose,expected_json,sub,expires_at,csrf_hash,operation_id,status) VALUES(?,'unlock',?,?,?,?,?,'COMMITTED')",transaction.tx,canonical(selector(original,runtime.app)),old.sub,transaction.expires_at,attempt.csrf_hash,transaction.operation_id),
   store.stmt('INSERT INTO jwt_v2_refresh_history VALUES(?,?,?,?,?,1,?,?,?)',old.fingerprint,old.sid,old.fingerprint_generation,old.binding_json,attempt.csrf_hash,now,transaction.operation_id,old.s_exp),

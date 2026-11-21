@@ -3,9 +3,10 @@
 const encode=buffer=>btoa(String.fromCharCode(...new Uint8Array(buffer))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
 export const accessArea=value=>['academy','tafseer','courses','mothers','hifz','studio','arabic-adventures'].includes(value)?value:'general';
 export const learningDestination=area=>['tafseer','courses'].includes(accessArea(area))?'/studio/?view=collections&collection='+accessArea(area):accessArea(area)==='studio'?'/studio/?manage=1':null;
-export async function signInFromCircles(request,credentials,{current=()=>true,onExchange=()=>{},bootstrap=false}={}){
- await request('/auth/native-login',{body:credentials});
- onExchange();if(!current())throw new DOMException('Sign-in was closed.','AbortError');
+export async function signInFromCircles(request,credentials,{current=()=>true,onExchange=()=>{},bootstrap=false,checkOnly=false}={}){
+ await request(checkOnly?'/auth/native-login-status':'/auth/native-login',{body:checkOnly?{}:credentials});
+ if(!current())throw new DOMException('Sign-in was closed.','AbortError');
+ onExchange();
  return request(bootstrap?'/api/circles/bootstrap':'/api/me');
 }
 export function openAcademyFromCircles({request,navigation,dashboard,hifzDestination,window=globalThis.window,onError=()=>{},onReturn}){
@@ -13,7 +14,9 @@ export function openAcademyFromCircles({request,navigation,dashboard,hifzDestina
   let closed=false;const auth=window.M4L_ACADEMY_AUTH;
   if(navigation==='hifz'){
    if(!hifzDestination)throw Error('Hifz is unavailable for this Academy session.');
-   auth.navigate(hifzDestination,{newTab:true}).catch(error=>onError(error.message));
+   const hifz=new URL(hifzDestination);
+   if(hifz.origin!=='https://mahadarwa-hifz.ummabbadacademy.app'||hifz.pathname!=='/'||hifz.search||hifz.hash)throw Error('Hifz is unavailable for this Academy session.');
+   auth.navigate(new URL('/auth/v2/shared-entry?area=hifz',hifz).href,{newTab:true}).catch(error=>onError(error.message));
    return {close(){}};
   }
   request('/auth/native-open',{body:{...(navigation?{navigation}:{}),...(dashboard?{dashboard}:{})}}).then(async result=>{if(closed)return;if(result.authVersion!==2)throw Error('Academy returned an incompatible navigation reply.');const destination=new URL(result.destination,window.location.origin);if(destination.origin!==window.location.origin||!/^\/(?:academy|account|programs|users|recorder|activities)(?:\/|$)/.test(destination.pathname))throw Error('Invalid Academy destination.');await auth.navigate(destination.href);}).catch(error=>onError(error.message));return {close(){closed=true;}};

@@ -17,7 +17,7 @@ import {accessArea,signInFromCircles,openAcademyFromCircles} from './shared/circ
 
 const labels={general:'Your Academy account',academy:'Islamic Academia',tafseer:'Tafseer and Tadabbur',courses:'Your classrooms',mothers:'Mothers of the Ummah',hifz:'Ma’had Arwa Hifz Academy',studio:'Studio','arabic-adventures':'Arabic Adventures'};
 const dialog=document.createElement('dialog');dialog.id='circles-sign-in';dialog.className='circles-sign-in';dialog.setAttribute('aria-labelledby','circles-sign-in-title');
-dialog.innerHTML=`<button type="button" class="circles-sign-in-close" aria-label="Close sign-in">×</button><p class="eyebrow" id="circles-sign-in-area">Your Academy account</p><h2 id="circles-sign-in-title">Ahlan wa Sahlan</h2><p id="circles-sign-in-intro">Log in with your existing Academy account.</p><section id="circles-remembered-accounts" aria-label="Remembered accounts"></section><form id="circles-sign-in-form"><label>Academy account ID<input name="uniqueid" autocomplete="username" maxlength="160" required></label><label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="off" readonly pattern="[0-9]{4}" maxlength="4" required></label><label id="circles-confirm-pin" hidden>Confirm your Academy PIN<input name="pinConfirmation" type="password" inputmode="numeric" autocomplete="off" readonly pattern="[0-9]{4}" maxlength="4"></label><label class="circles-remember-choice"><input type="checkbox" name="rememberId" checked>Remember my ID on this browser</label><button type="submit" class="btn">Log in</button></form><p id="circles-sign-in-status" role="status" aria-live="polite"></p>`;
+dialog.innerHTML=`<button type="button" class="circles-sign-in-close" aria-label="Close sign-in">×</button><p class="eyebrow" id="circles-sign-in-area">Your Academy account</p><h2 id="circles-sign-in-title">Ahlan wa Sahlan</h2><p id="circles-sign-in-intro">Log in with your existing Academy account.</p><section id="circles-remembered-accounts" aria-label="Remembered accounts"></section><form id="circles-sign-in-form"><label>Academy account ID<input name="uniqueid" autocomplete="username" maxlength="160" required></label><label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="off" readonly pattern="[0-9]{4}" maxlength="4" required></label><label id="circles-confirm-pin" hidden>Confirm your Academy PIN<input name="pinConfirmation" type="password" inputmode="numeric" autocomplete="off" readonly pattern="[0-9]{4}" maxlength="4"></label><label class="circles-remember-choice"><input type="checkbox" name="rememberId" checked>Remember my ID on this browser</label><button type="submit" class="btn">Log in</button><button type="button" class="btn" id="circles-pin-check" hidden>Check sign-in</button><button type="button" class="btn" id="circles-pin-restart" hidden>Start a new PIN check</button></form><p id="circles-sign-in-status" role="status" aria-live="polite"></p>`;
 document.body.append(dialog);
 const element=id=>document.getElementById(id),form=element('circles-sign-in-form'),message=element('circles-sign-in-status'),renderBlocks=circleBlockNavigation(document),renderCourses=circlesCourseRow(document),refinePublicHome=publicHome(document);
 const pins=pinEntry(form),pageHistory=installPageHistory();let historyReady=false;
@@ -89,22 +89,94 @@ function returnToCircles(){if(dialog.open)dialog.close();refreshHeader();const c
 async function begin(area,{switchUser=false}={}){const opening=++attempt;selected=accessArea(area);message.textContent='';try{await ready;if(opening!==attempt)return;if(identity.account&&!switchUser){if(publicView)setPublicView(false);returnToCircles();return;}switching=switchUser;form.reset();pins.clear();form.elements.rememberId.checked=!window.M4L_ACADEMY_AUTH?.selected;element('circles-sign-in-title').textContent=switching?'Switch user':'Ahlan wa Sahlan';element('circles-sign-in-intro').textContent=switching?'Choose an account and enter its PIN. This switches all Circles tabs in this browser.':'Log in with your existing Academy account.';form.querySelector('[type=submit]').textContent=switching?'Switch user':'Log in';renderRemembered();element('circles-sign-in-area').textContent=labels[selected];if(!dialog.open)dialog.showModal();}catch{if(!dialog.open)dialog.showModal();message.textContent='Sign-in is temporarily unavailable. Please try again.';}}
 dialog.querySelector('.circles-sign-in-close').onclick=()=>dialog.close();
 dialog.addEventListener('close',()=>{attempt++;switching=false;form.reset();pins.clear();delete form.dataset.setup;element('circles-confirm-pin').hidden=true;form.elements.pinConfirmation.required=false;message.textContent='';});
-form.addEventListener('submit',async event=>{
- event.preventDefault();if(!pins.validate())return;const button=form.querySelector('[type="submit"]');if(button.disabled)return;
- const opening=++attempt,loginId=form.elements.uniqueid.value.trim(),remember=form.elements.rememberId.checked,credential=pins.take();button.disabled=true;message.textContent='Signing in…';
+form.elements.pin.addEventListener('input',()=>{
+ if(!window.M4L_ACADEMY_AUTH?.selected||!dialog.open||form.dataset.setup==='1')return;
+ if(form.querySelector('[type="submit"]').disabled||!form.elements.uniqueid.value.trim())return;
+ if(/^[0-9]{4}$/.test(form.elements.pin.value))form.requestSubmit();
+});
+const recheckPin=element('circles-pin-check'),restartPin=element('circles-pin-restart');
+const submitPin=form.querySelector('[type="submit"]');
+let checkingPin=false;
+function showPinPending(pending){
+ form.elements.pin.disabled=pending;
+ form.elements.pinConfirmation.disabled=pending;
+ form.elements.uniqueid.readOnly=pending;
+ form.elements.rememberId.disabled=pending;
+ form.elements.pin.placeholder=pending?'••••':'';
+ submitPin.disabled=pending;
+}
+
+async function finishSignIn({checkOnly=false}={}){
+ if(checkingPin)return;
+ const v2=Boolean(window.M4L_ACADEMY_AUTH?.selected);
+ const opening=++attempt,loginId=form.elements.uniqueid.value.trim(),remember=form.elements.rememberId.checked;
+ const credential=checkOnly?null:pins.take();
+ checkingPin=true;
+ recheckPin.hidden=true;
+ restartPin.hidden=true;
+ if(v2)showPinPending(true);
+ else submitPin.disabled=true;
+ message.textContent=v2?'':'Signing in…';
+ const current=()=>opening===attempt&&dialog.open;
+ const checking=v2&&setTimeout(()=>{if(current())message.textContent='Checking PIN…';},300);
+ const slow=v2&&setTimeout(()=>{if(current())message.textContent='Connection is slow. Still checking…';},5000);
+ let pending=false;
  try{
   config||=await api('/api/config');
-  const boot=await signInFromCircles(api,{uniqueid:loginId,pin:credential.pin,setup:form.dataset.setup==='1',pinConfirmation:credential.pinConfirmation,remember},{current:()=>opening===attempt&&dialog.open,onExchange:()=>changed(null),bootstrap:true});
+  const boot=await signInFromCircles(api,credential&&{uniqueid:loginId,pin:credential.pin,setup:form.dataset.setup==='1',pinConfirmation:credential.pinConfirmation,remember},{current,onExchange:()=>changed(null),bootstrap:true,checkOnly});
+  if(!current())return;
   const me=boot.account;
-  if(!window.M4L_ACADEMY_AUTH?.selected){if(remember)rememberVerified(storage(),config.academyOrigin,{uniqueid:loginId,displayName:me.displayName});else forgetRemembered(storage(),config.academyOrigin,loginId);}
-  form.reset();pins.clear();delete form.dataset.setup;element('circles-confirm-pin').hidden=true;form.elements.pinConfirmation.required=false;nextAccountBootstrap=boot;changed(me);showHomeMessage(boot.errors?.navigation?'Your programme links could not be loaded. Please try Refresh.':'');
-  if(opening!==attempt||!dialog.open)return;returnToCircles();
+  if(!v2){if(remember)rememberVerified(storage(),config.academyOrigin,{uniqueid:loginId,displayName:me.displayName});else forgetRemembered(storage(),config.academyOrigin,loginId);}
+  form.reset();pins.clear();delete form.dataset.setup;element('circles-confirm-pin').hidden=true;form.elements.pinConfirmation.required=false;
+  nextAccountBootstrap=boot;changed(me);showHomeMessage(boot.errors?.navigation?'Your programme links could not be loaded. Please try Refresh.':'');
+  returnToCircles();
  }catch(error){
-  if(opening!==attempt||error.name==='AbortError')return;
-  if(['PIN_NOT_SET','PIN_SETUP_REQUIRED'].includes(error.code)){form.dataset.setup='1';element('circles-confirm-pin').hidden=false;form.elements.pinConfirmation.required=true;message.textContent='Enter your PIN again and confirm it to finish setting up your Academy account.';form.elements.pinConfirmation.focus();}
-  else{form.elements.pin.value='';form.elements.pinConfirmation.value='';message.textContent=error.message;}
- }finally{button.disabled=false;}
+  if(!current()||error.name==='AbortError')return;
+  if(['PIN_CHECK_PENDING','PIN_INSTALLATION_UNCONFIRMED'].includes(error.code)){
+   pending=true;
+   recheckPin.hidden=false;
+   restartPin.hidden=error.code!=='PIN_INSTALLATION_UNCONFIRMED';
+   message.textContent=restartPin.hidden?'Academy could not confirm sign-in yet. Check the result before entering your PIN again.':'Academy verified your PIN. Check sign-in again or start a new PIN check.';
+   recheckPin.focus();
+  }else if(['PIN_NOT_SET','PIN_SETUP_REQUIRED'].includes(error.code)){
+   showPinPending(false);form.dataset.setup='1';element('circles-confirm-pin').hidden=false;form.elements.pinConfirmation.required=true;
+   message.textContent='Enter your PIN again and confirm it to finish setting up your Academy account.';form.elements.pinConfirmation.focus();
+  }else{
+   pins.clear();
+   message.textContent=error.code==='WRONG_PIN'?'That PIN did not match. Try again.':error.code==='FRESH_PIN_REQUIRED'?'Enter your PIN again to start a new check.':error.message;
+  }
+ }finally{
+  clearTimeout(checking);clearTimeout(slow);
+  checkingPin=false;
+  if(current()&&!pending)showPinPending(false);
+ }
+}
+form.addEventListener('submit',event=>{
+ event.preventDefault();
+ if(submitPin.disabled||!pins.validate())return;
+ void finishSignIn();
 });
+recheckPin.addEventListener('click',()=>void finishSignIn({checkOnly:true}));
+restartPin.addEventListener('click',async()=>{
+ if(checkingPin)return;
+ const opening=attempt;
+ checkingPin=true;restartPin.disabled=true;recheckPin.disabled=true;
+ try{
+  await api('/auth/native-login-restart',{body:{}});
+  if(opening!==attempt||!dialog.open)return;
+  restartPin.hidden=true;recheckPin.hidden=true;
+  showPinPending(false);pins.focus();
+  message.textContent='Enter your PIN again to finish signing in.';
+ }catch{
+  if(opening===attempt&&dialog.open)message.textContent='Academy could not restart sign-in yet. Check the result again.';
+ }finally{checkingPin=false;restartPin.disabled=false;recheckPin.disabled=false;}
+});
+
+dialog.addEventListener('close',()=>{
+ showPinPending(false);
+ recheckPin.hidden=true;restartPin.hidden=true;
+});
+
 function openAcademy(navigationKey,destination){try{handoff?.close();const accountId=identity.account?.accountId,generation=identity.generation;handoff=openAcademyFromCircles({academyOrigin:config.academyOrigin,request:api,navigation:navigationKey,dashboard:destination,hifzDestination:dashboard.navigation?.hifz,onError:showHomeMessage,onReturn:mode=>{
  // Reuse only this still-open, same-account dashboard. This restores a view,
  // never authority: the existing Join, media and Admin gates remain current.

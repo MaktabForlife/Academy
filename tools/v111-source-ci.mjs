@@ -8,7 +8,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 export const APPS=['Academy','AcademyStudio','Hifz'];
 export const POLICY_SHA256='b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05';
 export const MANIFEST_PATH='deployment/v111-source-manifest.json';
-export const BUNDLE_ENTRIES=Object.freeze({academy:'Academy/backend/src/academy-development-runtime.js',academyPages:'Academy/backend/tools/academy-pages-worker.mjs',coordinator:'Academy/backend/src/academy-split-coordinator.js',studio:'AcademyStudio/hosting/saas/worker.mjs',hifz:'Hifz/worker/src/index.js'});
+export const BUNDLE_ENTRIES=Object.freeze({academy:'Academy/backend/src/academy-development-runtime.js',academyPages:'Academy/backend/tools/academy-pages-worker.mjs',coordinator:'Academy/backend/src/academy-split-coordinator.js',studio:'AcademyStudio/hosting/saas/deployment.mjs',hifz:'Hifz/worker/src/deployment.js'});
 const HEX40=/^[a-f0-9]{40}$/,HEX64=/^[a-f0-9]{64}$/;
 export const sha=raw=>createHash('sha256').update(raw).digest('hex');
 const need=(ok,code)=>{if(!ok)throw Object.assign(new Error(code),{code});};

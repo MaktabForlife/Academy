@@ -34,3 +34,22 @@ test('child offline report captures original local floor and retry delay atomica
 test('canonical receipt remains accepted pending rather than a false all-app ACK',async()=>{const a=await make('academy'),h=await make('hifz');a.raw.prepare("INSERT INTO jwt_v2_parents VALUES(?,?,?,?,?,?,?,?,?,'UNLOCKED')").run(h.psid,h.sub,h.bsid,1,4,9,h.now,h.now+604800,h.now);h.runtime.env.UAA_V2_PEERS={academy:{fetch:req=>handleServiceHTTP(a.runtime,req)}};const result=await (await runtimeServices(h.runtime)).queueReport({binding:h.binding,kind:'logout',operationId:crypto.randomUUID(),now:h.now});assert.equal(result.outcome,'ACCEPTED_PENDING');assert.equal(result.canonicalAccepted,true);assert.equal(result.globalConfirmed,false);assert.equal(a.raw.prepare('SELECT ae FROM jwt_v2_accounts').get().ae,10);assert.equal(a.raw.prepare('SELECT count(*) n FROM jwt_v2_outbox').get().n,2);});
 test('actual signed scoped snapshot round trip preserves two accounts and leaves other account active',async()=>{const a=await make('academy'),h=await make('hifz');for(const [i,sub] of ['Account-A','account-a'].entries()){const e=await event(a,i+1,{sub,kind:'authority-updated',target:{type:'dependency',id:'academy:profile',ownerEpoch:epoch,revision:5,effect:i?'INVALIDATE':'DENY',deniedActions:i?[]:['write']}});a.raw.prepare('INSERT INTO jwt_v2_outbox(event_id,event_json,digest,target_app) VALUES(?,?,?,?)').run(e.eventId,canonical(e),e.digest,'hifz');}a.raw.prepare("UPDATE jwt_v2_sender_streams SET next_sequence=3 WHERE target_app='hifz'").run();h.runtime.env.UAA_V2_PEERS={academy:{fetch:req=>handleServiceHTTP(a.runtime,req)}};const request={schema:2,env:'production',sourceApp:'hifz',targetApp:'academy',requestId:crypto.randomUUID(),ownerApp:'academy',recipientApp:'hifz',stream:'account-security',ownerEpoch:null,contiguousThrough:0,missingRanges:[],knownFloorsDigest:null,pageToken:null};const reply=await serviceFetch(h.runtime,{targetApp:'academy',path:'/internal/auth/v2/reconcile',body:request,operationId:request.requestId});assert.equal(reply.schema,3);assert.deepEqual(h.raw.prepare('SELECT scope_sub FROM jwt_v2_restrictions ORDER BY scope_sub').all().map(r=>r.scope_sub),['Account-A','account-a']);assert.equal((await h.store.family(h.sid)).authority_ready,1);assert.equal(h.raw.prepare('SELECT status FROM jwt_v2_receive_snapshots').get().status,'APPLIED');});
 test('cursor keys cannot reuse service/CSRF/draft material',async()=>{const a=await make('academy');assert.ok(cursorKeys(a.runtime).keys.has('cursor'));a.runtime.env.UAA_V2_CURSOR_KEYS_JSON=canonical({currentKid:'same',keys:[{kid:'same',key:Buffer.from(sourceKey).toString('base64url')}]});assert.throws(()=>cursorKeys(a.runtime),{code:'KEY_PURPOSE_SEPARATION_REQUIRED'});});
+
+test('signed shared Academy key withdrawal ends the bound child family before acknowledgement',async()=>{
+ const f=await make('hifz');
+ f.runtime.settings.sharedAcademy={revision:1};
+ const kid='synthetic-shared-key',family=await f.store.family(f.sid);
+ const projection={...JSON.parse(family.projection_json),sharedAcademyAdmission:{kid}};
+ await f.store.stmt('UPDATE jwt_v2_families SET projection_json=?,cr=cr+1 WHERE sid=?',canonical(projection),f.sid).run();
+ await f.runtime.publishFamily(f.sid);
+ const e=await event(f,1,{sub:null,kind:'key-withdrawn',target:{type:'key',purpose:'academy-shared-access',kid,registryRevision:2}});
+ const response=await incoming(f,[e]),result=await response.json();
+ assert.equal(result.results[0].status,'APPLIED');
+ assert.equal((await f.store.family(f.sid)).state,'REVOKED');
+ const app=(await f.runtime.cache.read('control/app')).value;
+ const local=(await f.runtime.cache.read('security/session/'+f.sid)).value;
+ assert.equal(app.sharedAcademyRegistryRevision,2);
+ assert.deepEqual(app.withdrawnSharedAcademyKids,[kid]);
+ assert.equal(local.localState,'REVOKED');
+ assert.equal(local.withdrawnHandoffKids?.includes(kid)??false,false);
+});

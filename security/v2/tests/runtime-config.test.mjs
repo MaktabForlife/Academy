@@ -70,3 +70,24 @@ test('actual runtime rejects raw native, global and wrong-recipient child floors
  const g=await fixture();g.raw.serviceDependencies=[g.raw.foreignDependencies[0],g.raw.foreignDependencies[0]];g.env.UAA_V2_CONFIG=JSON.stringify(g.raw);
  await assert.rejects(loadRuntimeConfiguration(g.env,'academy'),/DEPENDENCY_REGISTRY_INVALID/);
 });
+
+test('shared Academy keys use an exact production registry and dedicated signer',async()=>{
+ const f=await fixture(),shared=await ec();
+ const registry={issuer:ORIGINS.academy,env:'production',purpose:'academy-shared-access',revision:1,currentKid:'academy-shared',keys:[{kid:'academy-shared',jwk:shared.public}]};
+ f.env.UAA_V2_SHARED_ACADEMY_KEYS_JSON=JSON.stringify(registry);
+ f.env.UAA_V2_SHARED_ACADEMY_PRIVATE_JWK=JSON.stringify(shared.private);
+ const settings=await loadRuntimeConfiguration(f.env,'academy');
+ assert.equal(settings.sharedAcademy.kid,'academy-shared');
+ assert.equal(settings.sharedAcademy.revision,1);
+ assert.equal(settings.sharedAcademy.signingKey.extractable,false);
+ assert.equal(settings.sharedAcademy.keys.get('academy-shared').type,'public');
+ for(const patch of [{issuer:ORIGINS.studio},{env:'feature'},{purpose:'academy-handoff'},{revision:0}]){
+  f.env.UAA_V2_SHARED_ACADEMY_KEYS_JSON=JSON.stringify({...registry,...patch});
+  await assert.rejects(loadRuntimeConfiguration(f.env,'academy'),/SHARED_KEY_REGISTRY_INVALID/);
+ }
+ f.env.UAA_V2_SHARED_ACADEMY_KEYS_JSON=JSON.stringify({...registry,keys:[{kid:'academy-shared',jwk:f.api.public}]});
+ await assert.rejects(loadRuntimeConfiguration(f.env,'academy'),/KEY_PURPOSE_SEPARATION_REQUIRED/);
+ f.env.UAA_V2_SHARED_ACADEMY_KEYS_JSON=JSON.stringify(registry);
+ f.env.UAA_V2_SHARED_ACADEMY_PRIVATE_JWK=JSON.stringify(f.handoff.private);
+ await assert.rejects(loadRuntimeConfiguration(f.env,'academy'),/SIGNING_KEY_PAIR_CONFLICT/);
+});

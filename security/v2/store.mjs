@@ -3,6 +3,7 @@ import {familyPolicyRegistrationPlan} from './policy.mjs';
 import {issuanceFloorGuard} from './issuance-floors.mjs';
 import {admissionFloorGuard,restrictionPlan} from './publication.mjs';
 import {requireThat,reject,canonical,digest,equal,safeInt} from './codec.mjs';
+import {academyCookiePairControl,SHARED_PAIR_MODE} from './academy-cookie-pair.mjs';
 export class PrimaryStore {
  constructor(db,{app,env,academyFence=app==='academy',dependencyManifest,dependencyRegistry=new Map(),securityPrefix}){requireThat(['academy','studio','hifz'].includes(app)&&['production','feature'].includes(env),'INVALID_STORE_OWNER',503);this.app=app;this.env=env;this.academyFence=academyFence;this.dependencyManifest=dependencyManifest;this.dependencyRegistry=dependencyRegistry;this.securityPrefix=securityPrefix;this.owningDB=db;this.db=db.withSession('first-primary');}
  controlKey(suffix){requireThat(typeof this.securityPrefix==='string'&&this.securityPrefix.startsWith('auth-private/v2/'+this.env+'/'+this.app+'/')&&this.securityPrefix.endsWith('/'),'SECURITY_NAMESPACE_NOT_CONFIGURED',503);return this.securityPrefix+suffix;}
@@ -57,7 +58,7 @@ export class PrimaryStore {
   requireThat(['REVOKED','EXPIRED','LOCKED'].includes(state),'INVALID_TRANSITION',400);
   await this.batch([this.stmt("UPDATE jwt_v2_families SET state=?,cr=cr+1 WHERE sid=? AND state NOT IN('REVOKED','EXPIRED')",state,sid),this.stmt("UPDATE jwt_v2_intents SET state='CANCELLED',superseding_operation=? WHERE sid=? AND state='ISSUED'",operationId,sid)]);
  }
- async rotate({sid,fingerprint,intentId,csrfHash,expectedBinding,successorFingerprint,nextBinding,nextProjection,now,idleUntil,deadline,vectorGuards,qualifyingActivity,capture,requireBarrier=false}){
+ async rotate({sid,fingerprint,intentId,csrfHash,expectedBinding,successorFingerprint,nextBinding,nextProjection,now,idleUntil,deadline,vectorGuards,qualifyingActivity,capture,requireBarrier=false,pairFenceRevision=null}){
   requireThat(typeof qualifyingActivity==='boolean','ACTIVITY_CLASSIFICATION_REQUIRED',400);
   requireThat(Array.isArray(vectorGuards)&&vectorGuards.length>0,'AUTHORITATIVE_VECTOR_REQUIRED',503);
   const f=await this.family(sid);requireThat(f,'SESSION_ENDED');
@@ -74,19 +75,26 @@ export class PrimaryStore {
   requireThat(idleUntil>now&&idleUntil===Math.min(f.s_exp,(qualifyingActivity?now:f.last_refresh)+f.policy_minutes*60),'INVALID_INACTIVITY_EXTENSION',409);
   requireThat(canonical(nextProjection.binding)===canonical(nextBinding),'INVALID_PROJECTION_BINDING',409);
   const [g,clear]=this.guard("SELECT 1 FROM jwt_v2_families f JOIN jwt_v2_accounts a ON a.sub=f.sub JOIN jwt_v2_parents p ON p.psid=f.psid JOIN jwt_v2_browsers b ON b.bsid=f.bsid JOIN jwt_v2_intents i ON i.sid=f.sid WHERE f.sid=? AND f.fingerprint=? AND f.binding_json=? AND f.state='UNLOCKED' AND f.idle_until>? AND f.s_exp>? AND a.active=1 AND a.ce=f.ce AND a.ae=f.ae AND a.le=f.le AND p.state='UNLOCKED' AND p.ce=f.ce AND p.ae=f.ae AND b.bv=f.bv AND b.cancelled_through<f.bv AND i.intent_id=? AND i.state='ISSUED' AND i.expires_at>?",[sid,fingerprint,original,now,now,intentId,now]);
+  const pair=nextProjection.academyPairMode===SHARED_PAIR_MODE?academyCookiePairControl(f):null;
+  let pairGuard=[];
+  if(pair){
+   requireThat(this.app==='academy'&&pair.pendingOperation===intentId&&pairFenceRevision===f.cr
+    &&nextProjection.academyPairPending===null,'ACADEMY_PAIR_PUBLICATION_REQUIRED',503);
+   pairGuard=this.guard("SELECT 1 FROM jwt_v2_families f JOIN jwt_v2_objects o ON o.object_key=? WHERE f.sid=? AND f.cr=? AND f.s_exp>unixepoch() AND f.idle_until>unixepoch() AND ?>unixepoch() AND json_extract(f.projection_json,'$.academyPairPending')=? AND o.state='ACTIVE' AND o.semantic_revision=f.cr",[this.controlKey('security/session/'+sid),sid,pairFenceRevision,deadline,intentId]);
+  }else requireThat(pairFenceRevision===null&&!academyCookiePairControl(f)&&nextProjection.academyPairMode!==SHARED_PAIR_MODE,'ACADEMY_PAIR_MODE_CHANGED',409);
   const result={sid,sv:nextBinding.sv,deadline,operationId:intentId};
   const guards=vectorGuards.map(([id,scope,epoch,revision])=>this.guard("SELECT 1 FROM jwt_v2_dependencies WHERE id=? AND scope=? AND owner_epoch=? AND revision=?",[id,scope,epoch,revision]));
   const [floor,floorClear]=admissionFloorGuard(this,expectedBinding);
   const [issuance,issuanceClear]=issuanceFloorGuard(this,{binding:nextBinding,projection:nextProjection,vectorGuards,existingSid:sid,now});
   const barrierGuard=requireBarrier?this.guard("SELECT 1 FROM jwt_v2_ceremony_barriers WHERE psid=? AND bsid=? AND bv=? AND sub=? AND locked=0 AND idle_until>?",[f.psid,f.bsid,f.bv,f.sub,now]):[null,null];
-  const items=[g,floor,issuance,...(barrierGuard[0]?[barrierGuard[0]]:[]),...guards.map(x=>x[0]),
+  const items=[g,...pairGuard.slice(0,1),floor,issuance,...(barrierGuard[0]?[barrierGuard[0]]:[]),...guards.map(x=>x[0]),
    this.stmt('INSERT INTO jwt_v2_refresh_history(fingerprint,sid,generation,binding_json,csrf_hash,complete,spent_at,intent_id,s_exp) VALUES(?,?,?,?,?,1,?,?,?)',fingerprint,sid,f.fingerprint_generation,original,csrfHash,now,intentId,f.s_exp),
    this.stmt("UPDATE jwt_v2_families SET fingerprint=?,fingerprint_generation=fingerprint_generation+1,authority_ready=1,sv=sv+1,cr=cr+1,vat=?,deadline=?,idle_until=?,last_refresh=?,binding_json=?,projection_json=? WHERE sid=?",successorFingerprint,nextBinding.vat,deadline,idleUntil,qualifyingActivity?now:f.last_refresh,canonical(nextBinding),canonical(nextProjection),sid),
    ...(this.app==='academy'&&qualifyingActivity?[this.stmt("UPDATE jwt_v2_parents SET foreground_at=? WHERE psid=? AND sub=? AND bsid=? AND bv=? AND ce=? AND ae=? AND state='UNLOCKED'",now,f.psid,f.sub,f.bsid,f.bv,f.ce,f.ae)]:[]),
    this.stmt('INSERT INTO jwt_v2_ceremony_barriers VALUES(?,?,?,?,?,?,0,1) ON CONFLICT(psid,bsid,bv,sub) DO UPDATE SET last_refresh=excluded.last_refresh,idle_until=excluded.idle_until,revision=revision+1',f.psid,f.bsid,f.bv,f.sub,qualifyingActivity?now:f.last_refresh,idleUntil),
    this.stmt("UPDATE jwt_v2_intents SET state=CASE WHEN intent_id=? THEN 'COMMITTED' ELSE 'SUPERSEDED' END,result_json=?,superseding_operation=? WHERE sid=? AND state='ISSUED'",intentId,canonical(result),intentId,sid),
    this.stmt("INSERT INTO jwt_v2_operations VALUES(?,?, 'refresh',?,?,?)",intentId,f.sub,await digest({fingerprint,intentId,binding:expectedBinding}),canonical(result),now),
-   ...guards.map(x=>x[1]),...(barrierGuard[1]?[barrierGuard[1]]:[]),issuanceClear,floorClear,clear];
+   ...guards.map(x=>x[1]),...(barrierGuard[1]?[barrierGuard[1]]:[]),issuanceClear,floorClear,...pairGuard.slice(1),clear];
   try{await this.batch(items);return {winner:true,result,cookies:true};}
   catch(error){const winner=await this.first('SELECT state FROM jwt_v2_intents WHERE intent_id=?',intentId);if(winner?.state!=='ISSUED')return {winner:false,code:'REFRESH_SUPERSEDED',cookies:false};throw error;}
  }
@@ -100,10 +108,12 @@ export class PrimaryStore {
   if(!issued||issued.state!=='COMMITTED'||issued.kind!==kind||issued.binding_json!==h.binding_json||issued.generation!==h.generation)return {incidentEligible:false};
   return {incidentEligible:true,sub:binding.sub,ce:binding.ce,ae:binding.ae,sid:h.sid};
  }
- async acceptCutoff({sub,ce,ae,operationId,kind,now}){
+ async acceptCutoff({sub,ce,ae,operationId,kind,now,offlineUpdateRef}){
   requireThat(this.app==='academy'&&safeInt(ce,1)&&safeInt(ae,1),'WRONG_CANONICAL_OWNER',403);
-  requireThat(['VOLUNTARY_LOGOUT','VERIFIED_REFRESH_REUSE','SUSPICIOUS_ACTIVITY','CONFIRMED_KEY_COMPROMISE','ACCOUNT_DISABLED'].includes(kind),'INVALID_CUTOFF',400);
-  const requestDigest=await digest({sub,ce,ae,kind}),old=await this.first('SELECT * FROM jwt_v2_operations WHERE operation_id=?',operationId);
+  requireThat(['VOLUNTARY_LOGOUT','VERIFIED_REFRESH_REUSE','SUSPICIOUS_ACTIVITY','CONFIRMED_KEY_COMPROMISE','ACCOUNT_DISABLED','OFFLINE_UPDATE'].includes(kind),'INVALID_CUTOFF',400);
+  const offline=kind==='OFFLINE_UPDATE';
+  requireThat(offline?typeof offlineUpdateRef==='string'&&/^offline-update:[1-9][0-9]{0,15}:[\x21-\x7e]{1,80}$/.test(offlineUpdateRef):offlineUpdateRef===undefined,'INVALID_OFFLINE_UPDATE_REFERENCE',400);
+  const requestDigest=await digest({sub,ce,ae,kind,...(offline?{offlineUpdateRef}:{})}),old=await this.first('SELECT * FROM jwt_v2_operations WHERE operation_id=?',operationId);
   if(old){requireThat(old.request_digest===requestDigest,'OPERATION_CONFLICT',409);return JSON.parse(old.result_json);}
   const a=await this.first('SELECT * FROM jwt_v2_accounts WHERE sub=?',sub);requireThat(a,'ACCOUNT_UNAVAILABLE',503);
   if(ce<a.ce||(ce===a.ce&&ae<a.ae)){
@@ -112,13 +122,13 @@ export class PrimaryStore {
   }
   if(ce!==a.ce||ae!==a.ae)return {status:'RECONCILIATION_REQUIRED',cutoff:null};
   requireThat(safeInt(a.ae+1,1),'EPOCH_EXHAUSTED',503);
-  const cutoff={type:'accountCutoff',sub,maxCe:ce,maxAe:ae,reason:kind,incidentId:kind==='VOLUNTARY_LOGOUT'?null:operationId},result={status:'ACCEPTED',cutoff,receipt:operationId};
+  const cutoff={type:'accountCutoff',sub,maxCe:ce,maxAe:ae,reason:kind,incidentId:['VOLUNTARY_LOGOUT','OFFLINE_UPDATE'].includes(kind)?null:operationId},result={status:'ACCEPTED',cutoff,receipt:operationId};
   const localWork=await restrictionPlan(this,{workId:operationId,target:cutoff,now});
   const outbox=[],streamGuards=[],streamUpdates=[],streamClears=[];
   for(const targetApp of ['studio','hifz']){
    const stream=await this.first('SELECT * FROM jwt_v2_sender_streams WHERE target_app=? AND stream=?',targetApp,'account-security');
    requireThat(stream&&safeInt(stream.next_sequence+1,1),'OUTBOX_STREAM_UNAVAILABLE',503);
-   const e={schema:2,env:this.env,sourceApp:'academy',targetApp,eventId:crypto.randomUUID(),operationId,stream:stream.stream,ownerEpoch:stream.owner_epoch,sequence:stream.next_sequence,sub,kind:'account-revoked',target:cutoff,committedAt:now,commitRef:operationId};
+   const e={schema:2,env:this.env,sourceApp:'academy',targetApp,eventId:crypto.randomUUID(),operationId,stream:stream.stream,ownerEpoch:stream.owner_epoch,sequence:stream.next_sequence,sub,kind:'account-revoked',target:cutoff,committedAt:now,commitRef:offline?offlineUpdateRef:operationId};
    e.digest=await digest(e);outbox.push(e);
    const [sg,sc]=this.guard('SELECT 1 FROM jwt_v2_sender_streams WHERE target_app=? AND stream=? AND owner_epoch=? AND next_sequence=?',[targetApp,stream.stream,stream.owner_epoch,stream.next_sequence]);
    streamGuards.push(sg);streamClears.push(sc);

@@ -1,6 +1,7 @@
+import {runOfflineUpdateStep} from '../../security/v2/offline-operations.mjs';
 import {runAcademyOutboxMaintenance} from '../../security/v2/academy-outbox-scheduler.mjs';
 import {runtimeServices} from '../../security/v2/runtime-service.mjs';
-import {heldForV111Cutover, cutoverUnavailable} from '../../security/v2/cutover-state.mjs';
+import {heldForV111Cutover, offlineSecurityRequest, cutoverUnavailable} from '../../security/v2/cutover-state.mjs';
 import {createStudioAuthorityScheduler} from './academy/v111/studio-authority-scheduled.mjs';
 import {studioAuthoritySource} from './academy/v111/studio-authority-source.mjs';
 import {receiveNativeBusiness} from './academy/v111/native-business.mjs';
@@ -37,7 +38,11 @@ async function securityScheduledJobs(event, env) {
 }
 
 export default {
-  fetch: (request, env, ctx) => heldForV111Cutover(env) ? cutoverUnavailable() : selected(request, env, ctx),
+  fetch(request, env, ctx) {
+    if (!heldForV111Cutover(env)) return selected(request, env, ctx);
+    if (!offlineSecurityRequest(request, env, 'academy')) return cutoverUnavailable();
+    return selected(request, env, ctx);
+  },
   async scheduled(event, env, ctx) {
     if (heldForV111Cutover(env)) return;
     const results = await Promise.allSettled([
@@ -50,4 +55,11 @@ export default {
 };
 
 // Reachable only through the Studio's private service binding.
-export class WebsiteStudioAcademy extends WorkerEntrypoint {fetch(request){if(heldForV111Cutover(this.env))return cutoverUnavailable();return this.env.UAA_V2_ENABLED==='1'?selected(request,this.env,this.ctx):websiteStudioBridge(request,storage(this.env));}}
+export class WebsiteStudioAcademy extends WorkerEntrypoint {fetch(request){if(heldForV111Cutover(this.env)&&!offlineSecurityRequest(request,this.env,'academy'))return cutoverUnavailable();return this.env.UAA_V2_ENABLED==='1'?selected(request,this.env,this.ctx):websiteStudioBridge(request,storage(this.env));}}
+
+export class V111OfflineUpdate extends WorkerEntrypoint {
+  async step(command) {
+    const runtime = await runtimeFor(this.env, {app: 'academy'});
+    return runOfflineUpdateStep(runtime, command);
+  }
+}

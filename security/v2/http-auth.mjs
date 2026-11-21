@@ -4,12 +4,12 @@ import {clearCookies} from './tokens.mjs';
 import {selector,expectedContext,requireExpected} from './http-context.mjs';
 import {HTTPTransactions} from './http-transactions.mjs';
 import {rotateFamily,browserOutboxPlan} from './http-families.mjs';
-import {pinBootstrap,submitPIN} from './http-pin.mjs';
+import {pinBootstrap,submitPIN,pinStatus,restartPin} from './http-pin.mjs';
 import {journeyBootstrap,startJourney,finalizeJourney,callbackRelay,relayModule} from './http-journeys.mjs';
 import {restrictionPlan} from './publication.mjs';
 const STABLE='app sub sid psid bsid bv ce ae le'.split(' ');
 const sameStable=(a,b)=>a&&b&&STABLE.every(k=>a[k]===b[k]);
-function clear(runtime,response){for(const cookie of clearCookies(runtime.app))response.headers.append('Set-Cookie',cookie);return response;}
+function clear(runtime,response){for(const cookie of clearCookies(runtime.app,{sharedAccess:runtime.sharedAcademySessions}))response.headers.append('Set-Cookie',cookie);return response;}
 async function current(runtime,request,{spent=false}={}){try{return await runtime.currentFamily(request,{allowSpent:spent});}catch(error){if(error.code==='SESSION_ENDED')return null;throw error;}}
 async function bootstrap(runtime,request,body){
  const purpose=body.purpose||'refresh';requireThat(typeof purpose==='string','INVALID_AUTH_PURPOSE',400);
@@ -65,6 +65,10 @@ export async function handleAuthHTTP(runtime,request,ctx){
  const url=new URL(request.url),path=url.pathname;
  if(path.startsWith('/internal/auth/v2/')){const {handleServiceHTTP}=await import('./http-service.mjs');return handleServiceHTTP(runtime,request,ctx);}
  if(request.method==='GET'){
+  if(['/auth/v2/shared-return','/auth/v2/shared-return-client.mjs'].includes(path)){
+   const {sharedReturnPage}=await import('./http-shared-return.mjs');
+   return sharedReturnPage(runtime,request);
+  }
   if(path==='/auth/v2/relay.mjs')return relayModule(runtime);
   if(path==='/auth/v2/browser-session.mjs'||path==='/auth/v2/browser-drafts.mjs'){
    requireThat(['GET','HEAD'].includes(request.method),'METHOD_NOT_ALLOWED',405);
@@ -78,10 +82,15 @@ export async function handleAuthHTTP(runtime,request,ctx){
  for(const purpose of ['admission','unlock'])if(path==='/auth/v2/'+purpose+'/callback')return callbackRelay(runtime,request,purpose);
  verifyBootstrap(request,runtime.config);requireThat(/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(request.headers.get('Content-Type')||''),'JSON_BODY_REQUIRED',415);
  const body=await browserBody(request);requireThat(body&&typeof body==='object'&&!Array.isArray(body),'INVALID_AUTH_BODY',400);
+ if(path==='/auth/v2/shared-return'){
+  const {finishSharedReturn}=await import('./http-shared-return.mjs');return finishSharedReturn(runtime,request,body);
+ }
  if(path==='/auth/v2/bootstrap')return bootstrap(runtime,request,body);
  if(path==='/auth/v2/admission/start'&&runtime.app==='academy'){const {continueAcademy}=await import('./http-shells.mjs');return continueAcademy(runtime,request,body);}
  if(path==='/auth/v2/refresh')return rotateFamily(runtime,request,body);
  if(path==='/auth/v2/status')return status(runtime,request,body);
+ if(path==='/auth/v2/pin/status')return pinStatus(runtime,request,body);
+ if(path==='/auth/v2/pin/restart')return restartPin(runtime,request,body);
  if(path==='/auth/v2/pin')return submitPIN(runtime,request,body);
  if(path==='/auth/v2/pin/setup')return submitPIN(runtime,request,body,{setup:true});
  if(path==='/auth/v2/logout'||path==='/auth/v2/switch')return exit(runtime,request,body,path.split('/').at(-1));

@@ -32,6 +32,10 @@ export async function handleServiceHTTP(runtime,request,ctx){
  peers.set(request,Object.freeze({sourceApp:peer.sourceApp,targetApp:peer.targetApp,env:peer.env,path,keyId:peer.kid}));
  const body=strictJSON(raw);
  if(path.endsWith('/transactions')){
+  if(body.purpose==='shared-entry-return'){
+   const {registerSharedReturn}=await import('./http-shared-return.mjs');
+   return response(await registerSharedReturn(runtime,peer,body));
+  }
   exact(body,['tx','purpose','targetApp','expected','stateHash','challenge','callback','returnTo']);
   requireThat(runtime.app==='academy'&&body.targetApp===peer.sourceApp,'CEREMONY_SERVICE_DIRECTION',403);
   const ceremonies=runtime.getCeremonies?await runtime.getCeremonies():await runtime.ceremonies;requireThat(ceremonies?.register,'CEREMONY_SERVICE_UNAVAILABLE',503);
