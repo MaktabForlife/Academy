@@ -31,6 +31,44 @@ test('public snapshot relay strips account credentials and cannot choose another
  assert.equal(response.status,200);assert.equal(calls,1);
  assert.equal(await servePortal(new Request('https://new.example/api/private/user'),{}, {fetcher:()=>{throw Error('unreachable');}}),null);
 });
+test('V111 public Academy aliases use the canonical service URL without browser credentials',async()=>{
+ const origin=hosting().academyPortalOrigin;
+ const routes=[
+  ['/api/public/academy-announcements','/api/academy/announcements/published'],
+  ['/api/public/academy-announcements/image?asset=fixture','/api/academy/announcements/image?asset=fixture'],
+  ['/api/public/academy-announcements/pdf?asset=fixture','/api/academy/announcements/pdf?asset=fixture']
+ ];
+ const fetcher=()=>assert.fail('V111 Academy public aliases must use the service binding');
+ for(const [source,target] of routes){
+  const request=new Request(origin+source,{method:source.includes('/pdf?')?'HEAD':'GET',headers:{Cookie:'test=synthetic',Authorization:'Bearer synthetic',Range:'bytes=0-15','If-None-Match':'fixture'}});
+  const env={UAA_V2_ENABLED:'1',ACADEMY_V2_SERVICE:{async fetch(upstream){
+   assert.equal(upstream.url,origin+target);
+   assert.equal(upstream.method,request.method);
+   assert.equal(upstream.redirect,'manual');
+   assert.equal(upstream.headers.get('Range'),'bytes=0-15');
+   assert.equal(upstream.headers.get('If-None-Match'),'fixture');
+   assert.equal(upstream.headers.has('Cookie'),false);
+   assert.equal(upstream.headers.has('Authorization'),false);
+   return new Response('fixture',{headers:{'Content-Type':'text/plain'}});
+  }}};
+  const actual=await servePortal(request,env,{fetcher});
+  assert.equal(actual.status,200);
+  assert.equal(await actual.text(),request.method==='HEAD'?'':'fixture');
+ }
+ const failClosed=await servePortal(new Request(origin+routes[0][0]),{UAA_V2_ENABLED:'1'},{fetcher});
+ assert.equal(failClosed.status,503);
+ assert.equal((await failClosed.json()).code,'ACADEMY_V2_SERVICE_REQUIRED');
+ await servePortal(new Request(origin+routes[0][0]),{}, {fetcher:async upstream=>{
+  assert.equal(upstream.url,hosting().academyApiOrigin+routes[0][1]);
+  return new Response();
+ }});
+ const date=await servePortal(new Request(origin+'/api/public/header-date?day=2026-11-21'),{UAA_V2_ENABLED:'1'}, {fetcher:async upstream=>{
+  assert.equal(upstream.url,hosting().academyApiOrigin+'/api/academy/header-date?day=2026-11-21');
+  return new Response();
+ }});
+ assert.equal(date.status,200);
+});
+
 test('homepage and Studio entry are served from Academy source without database access',async()=>{
  const paths=[],env={ASSETS:{fetch:async r=>{paths.push(new URL(r.url).pathname);return new Response('synthetic page',{headers:{'Content-Type':'text/html'}});}}};
  const home=await servePortal(new Request('https://new.example/'),env);assert.equal(home.status,200);assert.equal(home.headers.get('Cache-Control'),'no-store');

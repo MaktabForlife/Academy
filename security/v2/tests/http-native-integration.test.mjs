@@ -21,9 +21,9 @@ async function signin(f){
  const boot=await f.post('academy','/auth/v2/bootstrap',{purpose:'pin',loginId:f.loginId,expectedContext:null});assert.equal(boot.response.status,200,JSON.stringify(boot.data));
  const login=await f.post('academy','/auth/v2/pin',{loginId:f.loginId,pin:'1234',tx:boot.data.tx,attemptId:boot.data.attemptId,operationId:boot.data.intent.id,expectedContext:null},boot.data);assert.equal(login.response.status,200,JSON.stringify(login.data));return login.data;
 }
-async function childJourney(f,app,{purpose='admission',expected=null,academyContext}={}){
+async function childJourney(f,app,{purpose='admission',expected=null,academyContext,returnTo='/'}={}){
  const boot=await f.post(app,'/auth/v2/bootstrap',{purpose:purpose+'/start',expectedContext:expected});assert.equal(boot.response.status,200,JSON.stringify(boot.data));
- const state=opaque(),verifier=opaque(),stateHash=await digestState(state),start=await f.post(app,'/auth/v2/'+purpose+'/start',{operationId:boot.data.intent.id,expectedContext:expected,stateHash,challenge:b64u(await sha256(verifier)),callback:ORIGINS[app]+'/auth/v2/'+purpose+'/callback',returnTo:'/'},boot.data);assert.equal(start.response.status,200,JSON.stringify(start.data));
+ const state=opaque(),verifier=opaque(),stateHash=await digestState(state),start=await f.post(app,'/auth/v2/'+purpose+'/start',{operationId:boot.data.intent.id,expectedContext:expected,stateHash,challenge:b64u(await sha256(verifier)),callback:ORIGINS[app]+'/auth/v2/'+purpose+'/callback',returnTo},boot.data);assert.equal(start.response.status,200,JSON.stringify(start.data));
  const proceed=await f.post('academy','/auth/v2/bootstrap',{purpose:'admission/proceed',tx:start.data.tx,expectedContext:academyContext});assert.equal(proceed.response.status,200,JSON.stringify(proceed.data));
  let issued;
  if(proceed.data.action==='PIN'){
@@ -35,13 +35,29 @@ async function childJourney(f,app,{purpose='admission',expected=null,academyCont
  assert.equal(issued.post.tx,start.data.tx);assert.equal(issued.post.stateHash,stateHash);assert.equal(new URL(issued.post.callback).search,'');
  const callback=await f.dispatch(new Request(issued.post.callback,{method:'POST',headers:{Origin:ORIGINS.academy,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({tx:issued.post.tx,stateHash:issued.post.stateHash,code:issued.post.code})}));assert.equal(callback.status,200,await callback.clone().text());assert.equal(callback.headers.getSetCookie().length,0);
  const finalBoot=await f.post(app,'/auth/v2/bootstrap',{purpose:purpose+'/finalize',tx:start.data.tx,observedOperationId:start.data.operationId,expectedContext:expected});assert.equal(finalBoot.response.status,200,JSON.stringify(finalBoot.data));assert.equal(finalBoot.data.intent.id,start.data.operationId);
- const result=await f.post(app,'/auth/v2/'+purpose+'/finalize',{tx:start.data.tx,operationId:start.data.operationId,expectedContext:expected,code:issued.post.code,verifier},finalBoot.data);assert.equal(result.response.status,200,JSON.stringify(result.data));return result.data;
+ const result=await f.post(app,'/auth/v2/'+purpose+'/finalize',{tx:start.data.tx,operationId:start.data.operationId,expectedContext:expected,code:issued.post.code,verifier},finalBoot.data);assert.equal(result.response.status,200,JSON.stringify(result.data));assert.equal(result.data.returnTo,returnTo);return result.data;
 }
 
 test('actual Studio and Hifz admission installs independent local cookies and immutable parent expiry',async()=>{
  const f=await createNativeHTTPFixture();try{const academy=await signin(f);
  for(const app of ['studio','hifz']){const local=await childJourney(f,app,{academyContext:academy.context});assert.equal(local.state,'UNLOCKED');assert.equal(local.context.sub,academy.context.sub);assert.equal(local.context.psid,academy.context.psid);assert.notEqual(local.context.sid,academy.context.sid);assert.equal(local.originalExpiresAtMs,academy.originalExpiresAtMs);assert.equal(local.validationDeadlineMs-local.serverNowMs,900000);}
  }finally{f.close();}
+});
+
+test('Studio retains Academy programme selections through the complete native handoff with default return settings',async()=>{
+ for(const [app,returnTo] of [['studio','/studio/?view=collections&collection=tafseer'],['studio','/studio/?classroom=mothers'],['studio','/studio/?view=collections&collection=courses'],['hifz','/']]){
+  const f=await createNativeHTTPFixture({prepareEnvironment({env}){
+   const config=JSON.parse(env.UAA_V2_CONFIG);
+   delete config.returns;
+   env.UAA_V2_CONFIG=JSON.stringify(config);
+  }});
+  try{
+   const academy=await signin(f);
+   const local=await childJourney(f,app,{academyContext:academy.context,returnTo});
+   assert.equal(local.state,'UNLOCKED');
+   assert.equal(local.context.psid,academy.context.psid);
+  }finally{f.close();}
+ }
 });
 
 test('all three actual app refreshes retain original seven-day expiry and warm authorization uses zero SQL',async()=>{
