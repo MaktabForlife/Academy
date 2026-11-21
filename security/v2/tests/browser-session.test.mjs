@@ -31,6 +31,20 @@ test('bootstrap is read-only, returns no credentials in public state, and preser
  f.session.dispose();
 });
 
+test('Academy PIN bootstrap preserves the same-origin POST origin without sending the current page URL',async()=>{
+ const f=fixture({app:'academy',origin:ACADEMY,hook:(call,f)=>json(f.dto(call.body.purpose,{tx:crypto.randomUUID(),attemptId:crypto.randomUUID()}))});
+ try{
+  await f.session.bootstrap({purpose:'pin'});
+  const [{url,init}]=f.requests;
+  assert.equal(url,ACADEMY+'/auth/v2/bootstrap');
+  assert.equal(init.mode,'same-origin');
+  assert.equal(init.redirect,'error');
+  assert.equal(init.referrerPolicy,'same-origin');
+  assert.equal(init.referrer,ACADEMY+'/');
+  assert.equal(init.headers['X-UAA-Request'],'2');
+ }finally{f.session.dispose();}
+});
+
 test('auth response cannot expose access or refresh credentials to JavaScript',async()=>{
  const f=fixture({hook:(c,f)=>c.path==='/auth/v2/bootstrap'?json(f.dto('refresh',{accessToken:'synthetic forbidden credential'})):undefined});
  await assert.rejects(f.session.bootstrap(),{code:'BROWSER_CREDENTIAL_EXPOSURE'});assert.equal(f.session.getContext(),null);f.session.dispose();
