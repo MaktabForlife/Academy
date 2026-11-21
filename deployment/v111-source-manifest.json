@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "m4-v111-d1-guard-grouping-20261120-r1",
+    "reviewId": "V111-R7-ACADEMY-PUBLIC-HOME-COLD-DELEGATION-20261121-r1",
     "changes": [
       {
         "app": "Academy",
@@ -222,6 +222,22 @@
         "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
         "bytes": 1815,
         "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/src/academy/v111/studio-portal.mjs",
+        "beforeSHA256": "7ece216462071768286a0f4eb67612bb0e44b0628f82c465f59c978cafee4807",
+        "sha256": "1da3b0bdc6776020b9bea2c16a68a341c0b6b9bd39e96c4372cf34e4bbcf0230",
+        "bytes": 11044,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/tests/academy-v111-portal.test.mjs",
+        "beforeSHA256": "4e3182ae6cc38d700a5aa2c3ad1e163e556a7b29c712a624e578607473eca1ac",
+        "sha256": "5c07c82c50ed8c4165d289112df984a28066867f27c5ef8a25bf3ac1d9272413",
+        "bytes": 16808,
+        "purpose": "HOSTING_TEST"
       }
     ]
   },
@@ -633,8 +649,8 @@
         },
         {
           "path": "backend/src/academy/v111/studio-portal.mjs",
-          "sha256": "7ece216462071768286a0f4eb67612bb0e44b0628f82c465f59c978cafee4807",
-          "bytes": 10609
+          "sha256": "1da3b0bdc6776020b9bea2c16a68a341c0b6b9bd39e96c4372cf34e4bbcf0230",
+          "bytes": 11044
         },
         {
           "path": "backend/tests/academy-assessments-recovery-ui.test.mjs",
@@ -863,8 +879,8 @@
         },
         {
           "path": "backend/tests/academy-v111-portal.test.mjs",
-          "sha256": "4e3182ae6cc38d700a5aa2c3ad1e163e556a7b29c712a624e578607473eca1ac",
-          "bytes": 14140
+          "sha256": "5c07c82c50ed8c4165d289112df984a28066867f27c5ef8a25bf3ac1d9272413",
+          "bytes": 16808
         },
         {
           "path": "backend/tests/academy-v111-program-calendar-annual.test.mjs",

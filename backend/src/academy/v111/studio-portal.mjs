@@ -35,29 +35,34 @@ async function coherentPacket(runtime,binding){
 }
 export async function academyStudioPortal(env,auth,{operation='summary',input={}}={}){
  const context=nativeAuthContext(auth);requireThat(context&&context.runtime.app==='academy','PORTAL_NATIVE_ACTOR_REQUIRED',403);
- const {runtime,cap}=context,trusted=runtime.businessCapability(cap),b=trusted.binding,now=runtime.clock();
+ const {runtime,cap}=context,trusted=runtime.businessCapability(cap),b=trusted.binding;
+ const sensitive=operation==='admin'||operation==='admin-cover';
  const fresh=await runtime.nativeCapture(b);requireThat(fresh.pv===b.pv&&canonical(fresh.rights)===canonical(trusted.rights),'AUTHORITY_UPDATE_REQUIRED',409);
- requireThat(!['admin','admin-cover'].includes(operation)||now<b.vat+60,'ADMIN_STATUS_EXPIRED',401);
- const packet=await coherentPacket(runtime,b),head=headOf(packet.manifest),rootGuard=runtime.writeGuard(cap,{sensitive:operation==='admin'||operation==='admin-cover'});
+ requireThat(!sensitive||runtime.clock()<b.vat+60,'ADMIN_STATUS_EXPIRED',401);
+ const packet=await coherentPacket(runtime,b),head=headOf(packet.manifest);
  const packetVector=await Promise.all(packet.manifest.sourceGuards.map(async([id,scope,epoch,revision])=>[await scopedVectorId(id,scope),epoch,revision]));
  requireThat(await vectorDigest(packetVector)===b.pv,'AUTHORITY_UPDATE_REQUIRED',409);
  const family=await runtime.store.family(b.sid),projection=family&&strictJSON(family.projection_json);
  requireThat(family?.binding_json===canonical(b)&&projection?.rightsHash===await digest(trusted.rights),'PORTAL_PARENT_CHANGED',409);
- const delegationId=opaque(),expiresAt=Math.min(now+10,trusted.deadline,b.s_exp,...(['admin','admin-cover'].includes(operation)?[b.vat+60]:[])),offeringId=operation.startsWith('admin')?input.offeringId:null,nativeAction=input.command?.action||operation,jobId=nativeAction==='resume'?input.command.input?.jobId:null,proof={binding:b,head,deadline:trusted.deadline,expiresAt,delegationId};
- const intentPlan=[];
- if(nativeAction==='provision'){
-  const intent=provisioningIntent(input.command,b,offeringId),hash=await digest(intent),old=await runtime.store.first('SELECT * FROM jwt_v2_portal_provision_intents WHERE operation_id=?',intent.operationId);
-  requireThat(!old||old.sub===b.sub&&old.ce===b.ce&&old.offering_id===offeringId&&old.identity_hash===hash,'PORTAL_PROVISION_INTENT_CONFLICT',409);
-  intentPlan.push(runtime.store.stmt('INSERT INTO jwt_v2_portal_provision_intents VALUES(?,?,?,?,?) ON CONFLICT(operation_id) DO NOTHING',intent.operationId,b.sub,b.ce,offeringId,hash));
- }
- await runtime.store.batch([...rootGuard.before,...intentPlan,runtime.store.stmt('INSERT INTO jwt_v2_root_delegations VALUES(?,?,?,?,?,?,?,?,?,?)',delegationId,canonical(b),canonical(head),trusted.kid,projection.rightsHash,operation,offeringId,nativeAction,jobId,expiresAt),...rootGuard.after]);
+ // Measure the wire lifetime after local preparation. Each projection
+ // transfer is independently guarded and cannot authorize a reverse command.
+ const send=async (phase,data,{offeringId=null,nativeAction=phase,jobId=null,intentPlan=[]}={})=>{
+  const now=runtime.clock();
+  requireThat(!sensitive||now<b.vat+60,'ADMIN_STATUS_EXPIRED',401);
+  const rootGuard=runtime.writeGuard(cap,{sensitive});
+  const expiresAt=Math.min(now+10,trusted.deadline,b.s_exp,sensitive?b.vat+60:Number.MAX_SAFE_INTEGER);
+  requireThat(now<expiresAt,'PORTAL_LEASE_EXPIRED',401);
+  const delegationId=opaque(),proof={binding:b,head,deadline:trusted.deadline,expiresAt,delegationId};
+  await runtime.store.batch([...rootGuard.before,...intentPlan,runtime.store.stmt('INSERT INTO jwt_v2_root_delegations VALUES(?,?,?,?,?,?,?,?,?,?)',delegationId,canonical(b),canonical(head),trusted.kid,projection.rightsHash,phase,offeringId,nativeAction,jobId,expiresAt),...rootGuard.after]);
+  return portalFetch(runtime,proof,phase,data);
+ };
  // Bounded cold profile progress is safe to repeat for a read. No business
  // mutation is sent until the complete signed source facts are installed.
  let row=packet.row;
  for(let n=0;n<4&&!row.installed;n++){
   let data;if(row.next_page<0)data={manifest:packet.manifest,manifestDigest:packet.manifestDigest};
   else{const page=await runtime.store.first('SELECT data,page_digest FROM studio_authority_fact_pages WHERE payload_digest=? AND page_index=?',head.payloadDigest,row.next_page);requireThat(page&&page.page_digest===packet.manifest.pageDigests[row.next_page],'PORTAL_PROFILE_PAGE_MISSING',503);data={schema:1,env:'production',operation:'page',exportId:packet.manifest.exportId,index:row.next_page,data:page.data,manifestDigest:packet.manifestDigest};}
-  const result=await portalFetch(runtime,proof,row.next_page<0?'stage-manifest':'stage-page',data),next=row.next_page+1,done=next>=packet.manifest.pageCount;
+  const result=await send(row.next_page<0?'stage-manifest':'stage-page',data),next=row.next_page+1,done=next>=packet.manifest.pageCount;
   if(result.status==='INSTALLED_PENDING')requireThat(false,'STUDIO_PORTAL_PREPARING',503);
   requireThat(done?result.status==='INSTALLED'||result.status==='COVERED_BY_NEWER':result.status==='STAGED','PORTAL_PROFILE_ACK_INVALID',503);
   // A concurrent read may acknowledge the same packet first. Progress is
@@ -68,7 +73,14 @@ export async function academyStudioPortal(env,auth,{operation='summary',input={}
  }
  requireThat(row.installed===1,'STUDIO_PORTAL_PREPARING',503);
  const before=await studioAuthoritySourceFloor(runtime,b.sub);requireThat(before&&canonical({sub:b.sub,ce:b.ce,ownerEpoch:before.target.ownerEpoch,revision:before.target.revision,payloadDigest:before.projectionDigest})===canonical(head),'AUTHORITY_UPDATE_REQUIRED',409);
- const value=await portalFetch(runtime,proof,operation,input);
+ const offeringId=operation.startsWith('admin')?input.offeringId:null,nativeAction=input.command?.action||operation,jobId=nativeAction==='resume'?input.command.input?.jobId:null;
+ const intentPlan=[];
+ if(nativeAction==='provision'){
+  const intent=provisioningIntent(input.command,b,offeringId),hash=await digest(intent),old=await runtime.store.first('SELECT * FROM jwt_v2_portal_provision_intents WHERE operation_id=?',intent.operationId);
+  requireThat(!old||old.sub===b.sub&&old.ce===b.ce&&old.offering_id===offeringId&&old.identity_hash===hash,'PORTAL_PROVISION_INTENT_CONFLICT',409);
+  intentPlan.push(runtime.store.stmt('INSERT INTO jwt_v2_portal_provision_intents VALUES(?,?,?,?,?) ON CONFLICT(operation_id) DO NOTHING',intent.operationId,b.sub,b.ce,offeringId,hash));
+ }
+ const value=await send(operation,input,{offeringId,nativeAction,jobId,intentPlan});
  runtime.assertCapability(cap);
  const after=await studioAuthoritySourceFloor(runtime,b.sub);requireThat(after&&after.target.revision===head.revision&&after.projectionDigest===head.payloadDigest,'AUTHORITY_UPDATE_REQUIRED',409);
  return value;

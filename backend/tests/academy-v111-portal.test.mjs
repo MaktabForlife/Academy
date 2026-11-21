@@ -146,3 +146,48 @@ test('a real reverse Source call stops when its Root is revoked, superseded or i
   }finally{f.close();}
  }
 });
+
+test('slow first homepage bootstrap waits to issue each short Studio proof',async()=>{
+ const {f}=await portalWorld();try{
+  f.loginId=f.databases.academy.prepare('SELECT login_link_id FROM accounts WHERE account_id=?').get(f.sub).login_link_id;
+  const login=await signIn(f),runtime=f.runtimes.academy,capture=runtime.nativeCapture.bind(runtime),peer=f.envs.academy.UAA_V2_PEERS.studio;
+  let injected=false,sends=[];
+  runtime.nativeCapture=async input=>{
+   const result=await capture(input);
+   if(!injected){injected=true;f.advance(21);}
+   return result;
+  };
+  f.envs.academy.UAA_V2_PEERS.studio={fetch:async request=>{
+   const body=await request.clone().json();
+   sends.push({operation:body.operation,issuedAt:body.issuedAt,expiresAt:body.expiresAt,receivedAt:f.now()});
+   const response=await peer.fetch(request);
+   if(body.operation==='stage-manifest'||body.operation==='stage-page')f.advance(6);
+   return response;
+  }};
+  const reply=await f.nativeRequest('/api/academy/hub/read',{kind:'bootstrap',input:{}},login);
+  assert(injected);
+  assert.equal(reply.response.status,200,JSON.stringify({code:reply.data?.code,forwarded:sends.length}));
+  assert(reply.data.account&&reply.data.dashboard,JSON.stringify({error:reply.data?.errors}));
+  assert(sends.some(x=>x.operation==='stage-manifest')&&sends.some(x=>x.operation==='stage-page')&&sends.some(x=>x.operation==='summary'));
+  assert(sends.every(x=>x.expiresAt-x.issuedAt===10&&x.receivedAt<x.expiresAt));
+  assert(new Set(sends.map(x=>x.issuedAt)).size>1);
+ }finally{await f.drainNativeBackground();f.close();}
+});
+
+test('a revoked Academy session cannot issue the next cold Studio proof',async()=>{
+ const {f}=await portalWorld();try{
+  f.loginId=f.databases.academy.prepare('SELECT login_link_id FROM accounts WHERE account_id=?').get(f.sub).login_link_id;
+  const login=await signIn(f),peer=f.envs.academy.UAA_V2_PEERS.studio,sends=[];
+  f.envs.academy.UAA_V2_PEERS.studio={fetch:async request=>{
+   const {operation}=await request.clone().json();sends.push(operation);
+   const response=await peer.fetch(request);
+   if(operation==='stage-manifest')f.databases.academy.prepare("UPDATE jwt_v2_families SET state='REVOKED',cr=cr+1 WHERE sid=?").run(login.context.sid);
+   return response;
+  }};
+  const reply=await f.nativeRequest('/api/academy/hub/read',{kind:'bootstrap',input:{}},login);
+  assert.deepEqual(sends,['stage-manifest']);
+  assert.equal(reply.data.navigation,null);
+  assert(reply.data.errors.navigation.status>=400);
+  assert.equal(f.databases.studio.prepare('SELECT count(*) n FROM studio_source_authority').get().n,0);
+ }finally{await f.drainNativeBackground();f.close();}
+});
