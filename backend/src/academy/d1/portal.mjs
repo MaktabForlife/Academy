@@ -35,7 +35,7 @@ async function academyAppLinks(db,state,env){
   courses:studio?'/studio/?view=collections&collection=courses':null,
   tafseer:studio?'/studio/?view=collections&collection=tafseer':null,
   mothers:studio&&Boolean(mappedProgrammeContext(state,'mothers',mappings)),
-  hifz:mappedProgrammeContext(state,'hifz',mappings)?ORIGINS.hifz+'/':null
+  hifz:mappedProgrammeContext(state,'hifz',mappings)?ORIGINS.hifz+'/?academy-entry=1':null
  };
 }
 const permissionKey=state=>JSON.stringify([state.account.account_id,state.account.credential_epoch,state.account.global_admin,state.roles,state.contexts,state.subscriptions,state.monthlyMedia]);

@@ -46,6 +46,20 @@ async function academy(options={}){
  }
  return {...f,service,keys,snapshot,rootTx,attempt,childTx,setTime:v=>{now=v;},time:()=>now,checks:()=>checks,setVerifier:v=>{verifier=v;}};
 }
+test('re-registering a child transaction retains the deadline shortened by a near-expiry Academy parent',async()=>{
+ const f=await academy();
+ const parentExpiry=f.raw.prepare('SELECT s_exp FROM jwt_v2_parents WHERE sub=?').get(f.sub).s_exp;
+ f.setTime(parentExpiry-30);
+ const registration={request:request('academy',{'X-Test-Child':'studio'}),tx:crypto.randomUUID(),purpose:'admission',targetApp:'studio',stateHash:await digestState(opaque()),challenge:await s256(opaque()),callback:ORIGINS.studio+'/auth/v2/admission/callback',returnTo:ORIGINS.studio+'/studio/',expiresAt:f.time()+300};
+ assert.equal((await f.service.register(registration)).expiresAt,registration.expiresAt);
+ const bound=await f.service.bindParent({request:request(),tx:registration.tx,sub:f.sub,pinRequired:false});
+ assert.equal(bound.expiresAt,parentExpiry);
+ f.setTime(f.time()+1);
+ assert.deepEqual(await f.service.register(registration),{tx:registration.tx,expiresAt:parentExpiry,status:'PENDING'});
+ await assert.rejects(f.service.register({...registration,expiresAt:parentExpiry-1}),/CEREMONY_CONFLICT/);
+ assert.equal(f.raw.prepare('SELECT expires_at FROM jwt_v2_ceremonies WHERE tx=?').get(registration.tx).expires_at,parentExpiry);
+});
+
 test('source addresses normalise equivalent IPv6 without accepting caller headers',()=>{
  assert.equal(normalizePlatformAddress('2001:0DB8:0:0:0:0:0:1'),normalizePlatformAddress('2001:db8::1'));
  assert.throws(()=>normalizePlatformAddress('spoofed-client-header'));

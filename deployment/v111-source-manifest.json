@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "V111-M4-P5-HANDOFF-DEADLINE-AND-HIFZ-PREFIX-20261121-R1",
+    "reviewId": "V111-DASHBOARD-SIGNIN-20261121-R1",
     "changes": [
       {
         "app": "Academy",
@@ -43,8 +43,8 @@
         "app": "Academy",
         "path": "backend/src/academy/d1/portal.mjs",
         "beforeSHA256": "8c7b6d0eaf08be617cd253284a577a254022edea1508b21d4f897aa8211f2fc1",
-        "sha256": "aa357459f8cc5d99ebe50b669be918fa8ba850e1d9838ee1f3cd2a3967760df1",
-        "bytes": 17552,
+        "sha256": "b4bab3278aec0c6192e20d82922a70af26c36b789f436e9be472f33fd6c41693",
+        "bytes": 17568,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -91,8 +91,8 @@
         "app": "Academy",
         "path": "backend/tests/academy-v111-portal.test.mjs",
         "beforeSHA256": "4e3182ae6cc38d700a5aa2c3ad1e163e556a7b29c712a624e578607473eca1ac",
-        "sha256": "6f679cd5e84e27235f80582f4983fb819283e4ef81ef187d9b2a35a02ea2c6dc",
-        "bytes": 19162,
+        "sha256": "1de310c71e3444f50a5c974b39028bb51198c260b988f1cd5b010a62d38cf7db",
+        "bytes": 19178,
         "purpose": "HOSTING_TEST"
       },
       {
@@ -185,6 +185,14 @@
       },
       {
         "app": "Academy",
+        "path": "portal-adapter/studio-enter.mjs",
+        "beforeSHA256": "2e44d91144edca968e1d9e420f7e6b41ff258ea0c574aa3833213bcb5c30b21f",
+        "sha256": "8e1f9844ddb95b5821d7036b2eebde08f045e59a670ede2dad77fc9928b99505",
+        "bytes": 1202,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
         "path": "portal/assets.json",
         "beforeSHA256": "c008afd21a7f876674178e33978c7215ca6a9d40acfaec2cc5d9fc988094a4b9",
         "sha256": "07ceba31115329285435d1acc48d3026a8cb8e2e4e939e669156474339e63ef9",
@@ -241,6 +249,14 @@
       },
       {
         "app": "Academy",
+        "path": "portal/studio-enter.mjs",
+        "beforeSHA256": "2e44d91144edca968e1d9e420f7e6b41ff258ea0c574aa3833213bcb5c30b21f",
+        "sha256": "8e1f9844ddb95b5821d7036b2eebde08f045e59a670ede2dad77fc9928b99505",
+        "bytes": 1202,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
         "path": "security/v2/academy-outbox-scheduler.mjs",
         "beforeSHA256": null,
         "sha256": "81427407c967507b7a11ceaf1d7dfc25bf4ab1393ab0204125e8f0cd51ee6f54",
@@ -264,11 +280,11 @@
         "purpose": "HOSTING_WRAPPER"
       },
       {
-        "path": "security/v2/ceremonies.mjs",
-        "sha256": "d9427f16e1b541e0b9d11fad5ad3fee72615932f0558361a906a4e7b97d65583",
-        "bytes": 44713,
         "app": "Academy",
+        "path": "security/v2/ceremonies.mjs",
         "beforeSHA256": "075c7e3d1b7bcd802a1d358786972093b46653e99f825ae9399c1023b4fcf21a",
+        "sha256": "b64a4a15ca560e6661c74b74fb38bad0bd72201360b23950048fbef152828c70",
+        "bytes": 44712,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -353,6 +369,14 @@
       },
       {
         "app": "Academy",
+        "path": "security/v2/test/ceremonies.test.mjs",
+        "beforeSHA256": "2a8016eec966369d9c2a44dab00209361f2c80e1984e281f9bdf5c2dbbc97cdb",
+        "sha256": "6a8e65c86fad5f57af6665757314202cd15cd4f16f3762585fb5e0ef029ec360",
+        "bytes": 30464,
+        "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Academy",
         "path": "security/v2/tests/browser-session.test.mjs",
         "beforeSHA256": "7d01aef2b136b177ce6d2712e3bdc60ed803f4753ac0a7135a8d2916600206c2",
         "sha256": "9456ccb3885132863b1dd3f9612d4f5dda0561fda24b4d8077a0f83b8be1d167",
@@ -427,16 +451,24 @@
         "app": "AcademyStudio",
         "path": "public/app.mjs",
         "beforeSHA256": "22b63049818c82d5d04a3266c67fa841d9775bb78a52f5fa8261fc7cf81cdbd9",
-        "sha256": "06f9dfe3a39c57444271f0f739d68acc2621e790de06cf6fbe4fa90f44992e24",
-        "bytes": 48493,
+        "sha256": "977a3385524e23c0f1887fd34da7c8439cb4b7d6dcc260f5acd854a6e2be4bc7",
+        "bytes": 49031,
         "purpose": "HOSTING_WRAPPER"
       },
       {
         "app": "AcademyStudio",
         "path": "public/shared/circles-routes.mjs",
         "beforeSHA256": "5f110aea22514f27e5efd85717eb52f4022406ca746fd3c92c213745a2c822a1",
-        "sha256": "48486bd3933b9b1f8b11fa51f75b0aa2b7af924d15eaf138ebf7e06b9fadef2c",
-        "bytes": 652,
+        "sha256": "a2c5e09d9081d7b5b259705a6b21370f5b8b4755f17fe52a1a314105ac545051",
+        "bytes": 893,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "public/v111-session.mjs",
+        "beforeSHA256": "bec6b28eaefe1a428757654c67ab950b182759e606c74fd04c2beab0efa07f38",
+        "sha256": "90bd109ef84bbadb4c43f455b2adba315ed4602b7d0e88fa399fe6d8ab8e3736",
+        "bytes": 8109,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -464,11 +496,11 @@
         "purpose": "HOSTING_WRAPPER"
       },
       {
-        "path": "security/v2/ceremonies.mjs",
-        "sha256": "d9427f16e1b541e0b9d11fad5ad3fee72615932f0558361a906a4e7b97d65583",
-        "bytes": 44713,
         "app": "AcademyStudio",
+        "path": "security/v2/ceremonies.mjs",
         "beforeSHA256": "075c7e3d1b7bcd802a1d358786972093b46653e99f825ae9399c1023b4fcf21a",
+        "sha256": "b64a4a15ca560e6661c74b74fb38bad0bd72201360b23950048fbef152828c70",
+        "bytes": 44712,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -563,8 +595,8 @@
         "app": "AcademyStudio",
         "path": "tests/v111-entry-return.test.mjs",
         "beforeSHA256": "0edc3e38799b6ba69bdbe0330216bb6ae32ddfcebfe8be135e8e7006152f5851",
-        "sha256": "8f0201898f59549fd2a05e545c13e7ae6d3004a6e41e6ba7e1e592b4054a95bc",
-        "bytes": 2932,
+        "sha256": "596eb7ec7eff06d9f9dff1b610348eb12e57b4bf90a0665a1aba9d541ca58a73",
+        "bytes": 4902,
         "purpose": "HOSTING_TEST"
       },
       {
@@ -574,6 +606,14 @@
         "sha256": "9baaf6f6dbfd686a4a85a4a103a897277cabc9576af5c764f9002ffcb7b97da3",
         "bytes": 18687,
         "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Hifz",
+        "path": "js/v111-session.js",
+        "beforeSHA256": "3181618c6b0574db258091581e5a489982519890eff520cb5cb6d33e8e89adcc",
+        "sha256": "9d3e6ce250ed695c08e76a0838d7ace6a5c388b0655aebe1244ec9c96fbf2b01",
+        "bytes": 14402,
+        "purpose": "HOSTING_WRAPPER"
       },
       {
         "app": "Hifz",
@@ -600,11 +640,11 @@
         "purpose": "HOSTING_WRAPPER"
       },
       {
-        "path": "security/v2/ceremonies.mjs",
-        "sha256": "d9427f16e1b541e0b9d11fad5ad3fee72615932f0558361a906a4e7b97d65583",
-        "bytes": 44713,
         "app": "Hifz",
+        "path": "security/v2/ceremonies.mjs",
         "beforeSHA256": "075c7e3d1b7bcd802a1d358786972093b46653e99f825ae9399c1023b4fcf21a",
+        "sha256": "b64a4a15ca560e6661c74b74fb38bad0bd72201360b23950048fbef152828c70",
+        "bytes": 44712,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -677,6 +717,14 @@
         "bytes": 4262,
         "app": "Hifz",
         "beforeSHA256": "07e047f2a9e33a77f2e2ab8b5124a4d4e6d432e210fefa81af92f27defddf5ed",
+        "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Hifz",
+        "path": "tests/verify_v111_sdk.mjs",
+        "beforeSHA256": "8824c2660ccd02c4834432e84bd09db70624e0bbe8d348bd0d14a3d852c23a72",
+        "sha256": "4230203509d8af4fbc0838f161bdc0d30f7e2ed31d75ac5acf15c14c0f9a9ded",
+        "bytes": 7901,
         "purpose": "HOSTING_TEST"
       },
       {
@@ -890,8 +938,8 @@
         },
         {
           "path": "backend/src/academy/d1/portal.mjs",
-          "sha256": "aa357459f8cc5d99ebe50b669be918fa8ba850e1d9838ee1f3cd2a3967760df1",
-          "bytes": 17552
+          "sha256": "b4bab3278aec0c6192e20d82922a70af26c36b789f436e9be472f33fd6c41693",
+          "bytes": 17568
         },
         {
           "path": "backend/src/academy/d1/profiles.js",
@@ -1340,8 +1388,8 @@
         },
         {
           "path": "backend/tests/academy-v111-portal.test.mjs",
-          "sha256": "6f679cd5e84e27235f80582f4983fb819283e4ef81ef187d9b2a35a02ea2c6dc",
-          "bytes": 19162
+          "sha256": "1de310c71e3444f50a5c974b39028bb51198c260b988f1cd5b010a62d38cf7db",
+          "bytes": 19178
         },
         {
           "path": "backend/tests/academy-v111-program-calendar-annual.test.mjs",
@@ -2015,8 +2063,8 @@
         },
         {
           "path": "portal-adapter/studio-enter.mjs",
-          "sha256": "2e44d91144edca968e1d9e420f7e6b41ff258ea0c574aa3833213bcb5c30b21f",
-          "bytes": 843
+          "sha256": "8e1f9844ddb95b5821d7036b2eebde08f045e59a670ede2dad77fc9928b99505",
+          "bytes": 1202
         },
         {
           "path": "portal/api.mjs",
@@ -2070,8 +2118,8 @@
         },
         {
           "path": "portal/studio-enter.mjs",
-          "sha256": "2e44d91144edca968e1d9e420f7e6b41ff258ea0c574aa3833213bcb5c30b21f",
-          "bytes": 843
+          "sha256": "8e1f9844ddb95b5821d7036b2eebde08f045e59a670ede2dad77fc9928b99505",
+          "bytes": 1202
         },
         {
           "path": "security/v2/README.txt",
@@ -2200,8 +2248,8 @@
         },
         {
           "path": "security/v2/ceremonies.mjs",
-          "sha256": "d9427f16e1b541e0b9d11fad5ad3fee72615932f0558361a906a4e7b97d65583",
-          "bytes": 44713
+          "sha256": "b64a4a15ca560e6661c74b74fb38bad0bd72201360b23950048fbef152828c70",
+          "bytes": 44712
         },
         {
           "path": "security/v2/codec.mjs",
@@ -2470,8 +2518,8 @@
         },
         {
           "path": "security/v2/test/ceremonies.test.mjs",
-          "sha256": "2a8016eec966369d9c2a44dab00209361f2c80e1984e281f9bdf5c2dbbc97cdb",
-          "bytes": 29244
+          "sha256": "6a8e65c86fad5f57af6665757314202cd15cd4f16f3762585fb5e0ef029ec360",
+          "bytes": 30464
         },
         {
           "path": "security/v2/test/control-publication.test.mjs",
@@ -3142,8 +3190,8 @@
         },
         {
           "path": "public/app.mjs",
-          "sha256": "06f9dfe3a39c57444271f0f739d68acc2621e790de06cf6fbe4fa90f44992e24",
-          "bytes": 48493
+          "sha256": "977a3385524e23c0f1887fd34da7c8439cb4b7d6dcc260f5acd854a6e2be4bc7",
+          "bytes": 49031
         },
         {
           "path": "public/builder/admin.mjs",
@@ -3162,8 +3210,8 @@
         },
         {
           "path": "public/shared/circles-routes.mjs",
-          "sha256": "48486bd3933b9b1f8b11fa51f75b0aa2b7af924d15eaf138ebf7e06b9fadef2c",
-          "bytes": 652
+          "sha256": "a2c5e09d9081d7b5b259705a6b21370f5b8b4755f17fe52a1a314105ac545051",
+          "bytes": 893
         },
         {
           "path": "public/shared/studio.mjs",
@@ -3177,8 +3225,8 @@
         },
         {
           "path": "public/v111-session.mjs",
-          "sha256": "bec6b28eaefe1a428757654c67ab950b182759e606c74fd04c2beab0efa07f38",
-          "bytes": 7974
+          "sha256": "90bd109ef84bbadb4c43f455b2adba315ed4602b7d0e88fa399fe6d8ab8e3736",
+          "bytes": 8109
         },
         {
           "path": "public/v111/browser-drafts.mjs",
@@ -3227,8 +3275,8 @@
         },
         {
           "path": "security/v2/ceremonies.mjs",
-          "sha256": "d9427f16e1b541e0b9d11fad5ad3fee72615932f0558361a906a4e7b97d65583",
-          "bytes": 44713
+          "sha256": "b64a4a15ca560e6661c74b74fb38bad0bd72201360b23950048fbef152828c70",
+          "bytes": 44712
         },
         {
           "path": "security/v2/child-security-tick.mjs",
@@ -3677,8 +3725,8 @@
         },
         {
           "path": "tests/v111-entry-return.test.mjs",
-          "sha256": "8f0201898f59549fd2a05e545c13e7ae6d3004a6e41e6ba7e1e592b4054a95bc",
-          "bytes": 2932
+          "sha256": "596eb7ec7eff06d9f9dff1b610348eb12e57b4bf90a0665a1aba9d541ca58a73",
+          "bytes": 4902
         },
         {
           "path": "tests/v111-native-context.test.mjs",
@@ -3754,8 +3802,8 @@
         },
         {
           "path": "js/v111-session.js",
-          "sha256": "3181618c6b0574db258091581e5a489982519890eff520cb5cb6d33e8e89adcc",
-          "bytes": 13891
+          "sha256": "9d3e6ce250ed695c08e76a0838d7ace6a5c388b0655aebe1244ec9c96fbf2b01",
+          "bytes": 14402
         },
         {
           "path": "js/v111/browser-drafts.mjs",
@@ -3804,8 +3852,8 @@
         },
         {
           "path": "security/v2/ceremonies.mjs",
-          "sha256": "d9427f16e1b541e0b9d11fad5ad3fee72615932f0558361a906a4e7b97d65583",
-          "bytes": 44713
+          "sha256": "b64a4a15ca560e6661c74b74fb38bad0bd72201360b23950048fbef152828c70",
+          "bytes": 44712
         },
         {
           "path": "security/v2/child-security-tick.mjs",
@@ -4069,8 +4117,8 @@
         },
         {
           "path": "tests/verify_v111_sdk.mjs",
-          "sha256": "8824c2660ccd02c4834432e84bd09db70624e0bbe8d348bd0d14a3d852c23a72",
-          "bytes": 5738
+          "sha256": "4230203509d8af4fbc0838f161bdc0d30f7e2ed31d75ac5acf15c14c0f9a9ded",
+          "bytes": 7901
         },
         {
           "path": "worker/src/hifz-v2.js",

@@ -208,7 +208,7 @@ test('Academy bootstrap and dashboard refresh return checked app links without c
    const initial=await f.nativeRequest('/api/academy/hub/read',{kind:'bootstrap',input:{mode:'learn'}},login);
    const refresh=await f.nativeRequest('/api/academy/hub/read',{kind:'dashboard',input:{mode:'learn',refresh:true}},login);
    const navigation=await f.nativeRequest('/api/academy/hub/read',{kind:'navigation',input:{}},login);
-   const links=eligible?{academia:[],studioAdmitted:true,courses:'/studio/?view=collections&collection=courses',tafseer:'/studio/?view=collections&collection=tafseer',mothers:false,hifz:'https://mahadarwa-hifz.ummabbadacademy.app/'}:{academia:[],studioAdmitted:false,courses:null,tafseer:null,mothers:false,hifz:null};
+   const links=eligible?{academia:[],studioAdmitted:true,courses:'/studio/?view=collections&collection=courses',tafseer:'/studio/?view=collections&collection=tafseer',mothers:false,hifz:'https://mahadarwa-hifz.ummabbadacademy.app/?academy-entry=1'}:{academia:[],studioAdmitted:false,courses:null,tafseer:null,mothers:false,hifz:null};
    for(const result of [initial,refresh,navigation])assert.equal(result.response.status,200,JSON.stringify({data:result.data,error:result.nativeError?.message}));
    assert.deepEqual(initial.data.navigation,links);
    assert.deepEqual(initial.data.dashboard.entryLinks,links);
