@@ -1,7 +1,7 @@
 (function(){
  'use strict';
  if(location.origin!=='https://ummabbadacademy.app'||document.querySelector('meta[name="uaa-auth-version"]')?.content!=='2'||document.querySelector('meta[name="uaa-app"]')?.content!=='academy')return;
- const style=document.createElement('style');style.textContent='html.uaa-v2-private-masked #circles-dashboard,html.uaa-v2-private-masked [data-circles-dashboard-dialog],html.uaa-v2-private-masked [data-circles-identity],html.uaa-v2-private-masked #academy-header-name{visibility:hidden!important;pointer-events:none!important}';document.head.append(style);
+ const style=document.createElement('style');style.textContent='html.uaa-v2-private-masked #circles-dashboard,html.uaa-v2-private-masked [data-circles-dashboard-dialog],html.uaa-v2-private-masked [data-circles-identity]:not(a.public-login[data-access-login]),html.uaa-v2-private-masked #academy-header-name{visibility:hidden!important;pointer-events:none!important}';document.head.append(style);
  let client=null;const ready=import('/js/m4l-v111-session.mjs').then(module=>module.createAcademyClient()).then(value=>{client=value;return value;});
  ready.catch(()=>{document.documentElement.classList.add('uaa-v2-private-masked');window.dispatchEvent(new CustomEvent('academy-v2-unavailable'));});
  const call=name=>(...args)=>ready.then(value=>value[name](...args));

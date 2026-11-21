@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "V111-R7-ACADEMY-PUBLIC-HOME-COLD-DELEGATION-20261121-r1",
+    "reviewId": "V111-R7-ACADEMY-PUBLIC-HOME-VISIBLE-LOGIN-20261121-r1",
     "changes": [
       {
         "app": "Academy",
@@ -238,6 +238,14 @@
         "sha256": "5c07c82c50ed8c4165d289112df984a28066867f27c5ef8a25bf3ac1d9272413",
         "bytes": 16808,
         "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Academy",
+        "path": "js/m4l-v111-session.js",
+        "beforeSHA256": "e65bac40294167d16351bbaa413df45934ec04bafb9b56f67f40d10f893049d7",
+        "purpose": "HOSTING_WRAPPER",
+        "sha256": "1a60b2d9b0b12110c5f3806b231c4adbe44ab0e5db4fc472778a132f7760a7c5",
+        "bytes": 2337
       }
     ]
   },
@@ -1479,8 +1487,8 @@
         },
         {
           "path": "js/m4l-v111-session.js",
-          "sha256": "e65bac40294167d16351bbaa413df45934ec04bafb9b56f67f40d10f893049d7",
-          "bytes": 2298
+          "sha256": "1a60b2d9b0b12110c5f3806b231c4adbe44ab0e5db4fc472778a132f7760a7c5",
+          "bytes": 2337
         },
         {
           "path": "js/m4l-v111-session.mjs",
