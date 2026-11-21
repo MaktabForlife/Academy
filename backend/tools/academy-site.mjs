@@ -1,5 +1,5 @@
 import {withoutCookies,withoutSetCookie} from '../../security/v2/http-cookie-boundary.mjs';
-import {heldForV111Cutover, cutoverUnavailable} from '../../security/v2/cutover-state.mjs';
+import {heldForV111Cutover, offlineSecurityRequest, cutoverUnavailable} from '../../security/v2/cutover-state.mjs';
 import {academyV2HTML} from '../src/academy/v111/html.mjs';
 import {servePortal} from './portal-site.mjs';
 import {assetPath} from './browser-site/worker.mjs';
@@ -10,7 +10,7 @@ import {academyCirclesAlias,academyCirclesPages,academyCirclesFragments,academyR
 export const siteVersion='109.25';
 export const siteBranch='development';
 export async function serveAcademySite(request,env,{pages=false,branch=siteBranch,syntheticOnly=false}={}){
-  if(heldForV111Cutover(env))return cutoverUnavailable();
+  if(heldForV111Cutover(env)&&!offlineSecurityRequest(request,env,'academy'))return cutoverUnavailable();
   const url=new URL(request.url);
   if(env.UAA_V2_ENABLED==='1'){
     if(url.origin!=='https://ummabbadacademy.app')return new Response('Open Academy at its configured address.',{status:421});

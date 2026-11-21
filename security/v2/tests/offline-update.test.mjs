@@ -87,7 +87,7 @@ async function readPrivate(f,app,session){
 }
 
 test('an offline update revokes all three owning sessions and applies the exact Academy cutoff to both children',async()=>{
- const f=await isolatedWorld({snapshotSchema:4,legacySessionMode:true,prepareAcademy:prepareHifzBaselineFixture});
+ const f=await isolatedWorld({snapshotSchema:4,legacySessionMode:true,deferSharedKeySetup:true,prepareAcademy:prepareHifzBaselineFixture});
  try{
   const {studio,hifz}=f.databases;
   studio.prepare("INSERT INTO objects VALUES('offline-recording',NULL,'video/mp4','Fixture recording',0,'fixture',?)").run(membership.studio);
@@ -220,6 +220,15 @@ test('an offline update revokes all three owning sessions and applies the exact 
     settings.raw.sharedAcademySessions=true;
    }else settings.raw.sharedChildEntry={ownerEpoch:'fixture-account-stream',notBefore:f.now()};
    f.envs[app].UAA_V2_CONFIG=canonical(settings.raw);
+   const runtime=f.runtimes[app];
+   const action=app==='academy'?runOfflineUpdateStep:(await import(new URL('../../../../'+(app==='studio'?'AcademyStudio':'Hifz')+'/security/v2/offline-operations.mjs',import.meta.url))).runOfflineUpdateStep;
+   const activePhase=f.envs[app].UAA_V111_CUTOVER;
+   f.envs[app].UAA_V111_CUTOVER='held';
+   assert.equal((await runtime.appControl()).sharedAcademyRegistryRevision,undefined);
+   const installed=await action(runtime,{...update,action:'publishSharedRegistry'});
+   assert.deepEqual(installed,{status:'VERIFIED',revision:1,controlRevision:2});
+   assert.deepEqual(await action(runtime,{...update,action:'publishSharedRegistry'}),installed);
+   f.envs[app].UAA_V111_CUTOVER=activePhase;
    restart(f,app);
   }
   const source=f.runtimes.academy.settings.raw,productionLike=f.envs.academy;

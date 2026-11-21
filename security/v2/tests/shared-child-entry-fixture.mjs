@@ -7,17 +7,29 @@ import {defaultReturnPaths} from '../return-routes.mjs';
 import {dependencyScope} from '../issuance-floors.mjs';
 import {createStudioAuthorityExport} from '../../../backend/src/academy/v111/studio-authority-source.mjs';
 
-export async function isolatedWorld({snapshotSchema=3,prepareAcademy,legacySessionMode=false}={}){
+export async function isolatedWorld({snapshotSchema=3,prepareAcademy,legacySessionMode=false,deferSharedKeySetup=false}={}){
  const key=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
  const kid='shared-child-entry-test',ownerEpoch='fixture-account-stream';
  const publicKey=canonical({issuer:ORIGINS.academy,env:'production',purpose:'academy-shared-access',revision:1,currentKid:kid,keys:[{kid,jwk:await crypto.subtle.exportKey('jwk',key.publicKey)}]});
- return world({prepareAcademy,owningRuntimes:true,prepareEnvironment:async({app,env,now})=>{
+ const privateKey=canonical(await crypto.subtle.exportKey('jwk',key.privateKey));
+ const installKeys=(app,env)=>{
   env.UAA_V2_SHARED_ACADEMY_KEYS_JSON=publicKey;
+  if(app==='academy')env.UAA_V2_SHARED_ACADEMY_PRIVATE_JWK=privateKey;
+ };
+ const fixture=await world({prepareAcademy,owningRuntimes:true,prepareEnvironment:async({app,env,now})=>{
+  if(!deferSharedKeySetup)installKeys(app,env);
   const raw={...JSON.parse(env.UAA_V2_CONFIG),snapshotSchema};
   raw.returns.studio=defaultReturnPaths('studio').map(path=>ORIGINS.studio+path);
   env.UAA_V2_CONFIG=canonical({...raw,...(legacySessionMode?{}:app==='academy'?{sharedAcademySessions:true}:{sharedChildEntry:{ownerEpoch,notBefore:now}})});
-  if(app==='academy')env.UAA_V2_SHARED_ACADEMY_PRIVATE_JWK=canonical(await crypto.subtle.exportKey('jwk',key.privateKey));
  }});
+ if(deferSharedKeySetup){
+  for(const [app,env] of Object.entries(fixture.envs)){
+   installKeys(app,env);
+   const runtime=fixture.runtimes[app];
+   runtime.settings.sharedAcademy={revision:1,kid,keys:new Map([[kid,key.publicKey]]),signingKey:app==='academy'?key.privateKey:null};
+  }
+ }
+ return fixture;
 }
 export function installSyntheticBaseline(f,app,context){
  const db=f.databases[app],ownerEpoch='fixture-account-stream',receipt=crypto.randomUUID();
