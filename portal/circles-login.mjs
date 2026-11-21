@@ -63,12 +63,16 @@ function refreshHeader(){
   if(identity.account&&!existing){const signout=document.createElement('button');signout.type='button';signout.className='circles-header-sign-out';signout.dataset.circlesSignOut='';signout.innerHTML=headerIcon('signout');signout.title='Sign out';signout.setAttribute('aria-label','Sign out');entry.after(signout);}else if(!identity.account)existing?.remove();
  }
  for(const entry of document.querySelectorAll('a[data-action="visitor-access"],a[href="https://ummabbadacademy.com/my-account/"],a[href="/circles/?login=1"],a[href="/?login=1"]')){const area=accessArea(entry.dataset.id);entry.href='/?login=1&area='+area;entry.removeAttribute('target');entry.removeAttribute('rel');if(!entry.dataset.action&&!entry.dataset.programmeKey)entry.dataset.circlesLogin='';}
- refinePublicHome();renderBlocks(Boolean(identity.account)&&!publicView,navigation);renderCourses(Boolean(identity.account)&&!publicView,navigation,dashboard.mode);dashboard.refresh();void tafseerRail.update(Boolean(identity.account)&&!publicView&&Boolean(navigation));
+ refinePublicHome();renderBlocks(Boolean(identity.account)&&!publicView,dashboard.navigation);renderCourses(Boolean(identity.account)&&!publicView,dashboard.navigation,dashboard.mode);dashboard.refresh();if(!window.M4L_ACADEMY_AUTH?.selected)void tafseerRail.update(Boolean(identity.account)&&!publicView&&Boolean(navigation));
  const home=element('learning-circles');if(home){let status=element('circles-navigation-status');if(!status){status=document.createElement('p');status.id='circles-navigation-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');home.append(status);}if(status.textContent!==homeMessage)status.textContent=homeMessage;status.hidden=!homeMessage;}
 }
 function closeAccountMenu({focus=false}={}){for(const menu of document.querySelectorAll('.circles-account-menu')){menu.hidden=true;const account=menu.parentElement.querySelector('.public-login');account?.setAttribute('aria-expanded','false');if(focus)account?.focus();}}
 function setPublicView(value){publicView=value;const url=new URL(location.href);if(value)url.searchParams.set('public','1');else url.searchParams.delete('public');history.replaceState(null,'',url);closeAccountMenu();refreshHeader();if(value)window.scrollTo({top:0,behavior:'smooth'});}
-async function refreshHomepage(){if(refreshing)return;refreshing=true;closeAccountMenu();refreshHeader();try{await Promise.all([loadNavigation(),dashboard.load(dashboard.mode,true),tafseerRail.refresh()]);showHomeMessage('');}catch(error){showHomeMessage(error.message||'Your homepage could not be refreshed.');}finally{refreshing=false;refreshHeader();}}
+async function refreshHomepage(){if(refreshing)return;refreshing=true;closeAccountMenu();refreshHeader();try{
+ if(window.M4L_ACADEMY_AUTH?.selected)await dashboard.load(dashboard.mode,true);
+ else await Promise.all([loadNavigation(),dashboard.load(dashboard.mode,true),tafseerRail.refresh()]);
+ showHomeMessage('');
+ }catch(error){showHomeMessage(error.message||'Your homepage could not be refreshed.');}finally{refreshing=false;refreshHeader();}}
 async function loadNavigation(){
  const generation=identity.generation,accountId=identity.account?.accountId;if(!accountId)return;
  const key=accountId+':'+generation;if(navRequest?.key===key)return navRequest.promise;
@@ -101,7 +105,7 @@ form.addEventListener('submit',async event=>{
   else{form.elements.pin.value='';form.elements.pinConfirmation.value='';message.textContent=error.message;}
  }finally{button.disabled=false;}
 });
-function openAcademy(navigationKey,destination){try{handoff?.close();const accountId=identity.account?.accountId,generation=identity.generation;handoff=openAcademyFromCircles({academyOrigin:config.academyOrigin,request:api,navigation:navigationKey,dashboard:destination,onError:showHomeMessage,onReturn:mode=>{
+function openAcademy(navigationKey,destination){try{handoff?.close();const accountId=identity.account?.accountId,generation=identity.generation;handoff=openAcademyFromCircles({academyOrigin:config.academyOrigin,request:api,navigation:navigationKey,dashboard:destination,hifzDestination:dashboard.navigation?.hifz,onError:showHomeMessage,onReturn:mode=>{
  // Reuse only this still-open, same-account dashboard. This restores a view,
  // never authority: the existing Join, media and Admin gates remain current.
  if(!accountId||identity.account?.accountId!==accountId||identity.generation!==generation||dashboard.mode!==mode||!dashboard.data||!Number.isFinite(dashboard.data.checkedAt)||Date.now()<dashboard.data.checkedAt||Date.now()-dashboard.data.checkedAt>=43200_000)return false;

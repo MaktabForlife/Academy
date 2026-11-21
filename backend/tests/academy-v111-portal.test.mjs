@@ -37,7 +37,7 @@ test('actual Academy portal uses a real Root parent and native Studio business a
 
 test('actual Root portal summary checks native published catalogue access and keeps child admission separate',async()=>{
  const {f,a}=await portalWorld();try{
-  const login=await signIn(f),result=await f.nativeRequest('/api/academy/hub/read',{kind:'navigation',input:{}},login);
+  const login=await signIn(f),result=await f.nativeRequest('/api/academy/hub/read',{kind:'access',input:{websiteIds:[a.websiteId]}},login);
   assert.equal(result.response.status,200,JSON.stringify({data:result.data,error:result.nativeError?.message,trace:f.trace}));
   assert(result.data);
   assert.equal(f.databases.studio.prepare('SELECT count(*) n FROM jwt_v2_families').get().n,0);
@@ -147,7 +147,7 @@ test('a real reverse Source call stops when its Root is revoked, superseded or i
  }
 });
 
-test('slow first homepage bootstrap waits to issue each short Studio proof',async()=>{
+test('slow first explicit Studio access read waits to issue each short Studio proof',async()=>{
  const {f}=await portalWorld();try{
   f.loginId=f.databases.academy.prepare('SELECT login_link_id FROM accounts WHERE account_id=?').get(f.sub).login_link_id;
   const login=await signIn(f),runtime=f.runtimes.academy,capture=runtime.nativeCapture.bind(runtime),peer=f.envs.academy.UAA_V2_PEERS.studio;
@@ -164,10 +164,10 @@ test('slow first homepage bootstrap waits to issue each short Studio proof',asyn
    if(body.operation==='stage-manifest'||body.operation==='stage-page')f.advance(6);
    return response;
   }};
-  const reply=await f.nativeRequest('/api/academy/hub/read',{kind:'bootstrap',input:{}},login);
+  const reply=await f.nativeRequest('/api/academy/hub/read',{kind:'access',input:{}},login);
   assert(injected);
   assert.equal(reply.response.status,200,JSON.stringify({code:reply.data?.code,forwarded:sends.length}));
-  assert(reply.data.account&&reply.data.dashboard,JSON.stringify({error:reply.data?.errors}));
+  assert(Array.isArray(reply.data.websites));
   assert(sends.some(x=>x.operation==='stage-manifest')&&sends.some(x=>x.operation==='stage-page')&&sends.some(x=>x.operation==='summary'));
   assert(sends.every(x=>x.expiresAt-x.issuedAt===10&&x.receivedAt<x.expiresAt));
   assert(new Set(sends.map(x=>x.issuedAt)).size>1);
@@ -184,10 +184,37 @@ test('a revoked Academy session cannot issue the next cold Studio proof',async()
    if(operation==='stage-manifest')f.databases.academy.prepare("UPDATE jwt_v2_families SET state='REVOKED',cr=cr+1 WHERE sid=?").run(login.context.sid);
    return response;
   }};
-  const reply=await f.nativeRequest('/api/academy/hub/read',{kind:'bootstrap',input:{}},login);
+  const reply=await f.nativeRequest('/api/academy/hub/read',{kind:'access',input:{}},login);
   assert.deepEqual(sends,['stage-manifest']);
-  assert.equal(reply.data.navigation,null);
-  assert(reply.data.errors.navigation.status>=400);
+  assert(reply.response.status>=400);
   assert.equal(f.databases.studio.prepare('SELECT count(*) n FROM studio_source_authority').get().n,0);
  }finally{await f.drainNativeBackground();f.close();}
+});
+
+test('Academy bootstrap and dashboard refresh return checked app links without calling either child',async()=>{
+ for(const eligible of [true,false]){
+  const {f}=await portalWorld();try{
+   const db=f.databases.academy,activityKey='PROGRAM:dashboard-hifz';
+   db.prepare("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible) VALUES(?,'dashboard-hifz','PROGRAM','Synthetic Hifz',1,'ACTIVE',1)").run(activityKey);
+   db.prepare("INSERT INTO program_settings(activity_key,timezone) VALUES(?,'Africa/Johannesburg')").run(activityKey);
+   if(eligible)db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('dashboard-hifz-student',?,?,'STUDENT',1,'CONFIRMED')").run(f.sub,activityKey);
+   db.prepare('INSERT INTO website_platform_admissions(account_id,active) VALUES(?,?)').run(f.sub,Number(eligible));
+   f.envs.academy.WEBSITE_PLATFORM_NAVIGATION=JSON.stringify({hifz:'dashboard-hifz'});
+   f.loginId=db.prepare('SELECT login_link_id FROM accounts WHERE account_id=?').get(f.sub).login_link_id;
+   let childCalls=0;
+   const unavailable={fetch:async()=>{childCalls++;throw Error('Child unreachable');}};
+   Object.assign(f.envs.academy.UAA_V2_PEERS,{studio:unavailable,hifz:unavailable});
+   const login=await signIn(f);
+   const initial=await f.nativeRequest('/api/academy/hub/read',{kind:'bootstrap',input:{mode:'learn'}},login);
+   const refresh=await f.nativeRequest('/api/academy/hub/read',{kind:'dashboard',input:{mode:'learn',refresh:true}},login);
+   const navigation=await f.nativeRequest('/api/academy/hub/read',{kind:'navigation',input:{}},login);
+   const links=eligible?{academia:[],studio:'/studio/',tafseer:'/studio/?view=collections&collection=tafseer',mothers:false,hifz:'https://mahadarwa-hifz.ummabbadacademy.app/'}:{academia:[],studio:null,tafseer:null,mothers:false,hifz:null};
+   for(const result of [initial,refresh,navigation])assert.equal(result.response.status,200,JSON.stringify({data:result.data,error:result.nativeError?.message}));
+   assert.deepEqual(initial.data.navigation,links);
+   assert.deepEqual(initial.data.dashboard.entryLinks,links);
+   assert.deepEqual(refresh.data.entryLinks,links);
+   assert.deepEqual(navigation.data,links);
+   assert.equal(childCalls,0);
+  }finally{await f.drainNativeBackground();f.close();}
+ }
 });

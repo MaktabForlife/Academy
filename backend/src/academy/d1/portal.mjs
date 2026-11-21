@@ -1,10 +1,11 @@
 import {nativeAuthContext,nativeRequestContext} from '../v111/native-context.js';
+import {ORIGINS} from '../../../../security/v2/tokens.mjs';
 // Native Academy homepage adapter. Cached display data never grants access.
 import {hosting} from '../hosting.mjs';
 import {bodyJSON,fail,id,random,signedHeaders,websiteServerOrigin,sha256} from './web-platform/protocol.mjs';
 import {enqueueAccount,pendingAccount,completeSignIn,sourceSession} from './web-platform/bridge.mjs';
 import {prepareAccountAccess} from './web-platform/access.mjs';
-import {programmeChoice} from './web-platform/navigation.mjs';
+import {mappedProgrammeContext,navigationMappings,programmeChoice} from './web-platform/navigation.mjs';
 import {dashboardChoice,dashboardSummary,dashboardJoinInput,dashboardTimetableAudience} from './web-platform/dashboard.mjs';
 import {nativeJoinOwnership} from './web-platform/native-join.mjs';
 import {verifySessionToken} from '../../lib/auth-primitives.js';
@@ -24,6 +25,17 @@ export function portalDashboardLinks(value,summary){
   }
  }
  return data;
+}
+async function academyAppLinks(db,state,env){
+ const admission=await db.prepare('SELECT active FROM website_platform_admissions WHERE account_id=? COLLATE NOCASE').bind(state.account.account_id).first();
+ const mappings=navigationMappings(env),studio=!admission||admission.active===1;
+ return {
+  academia:[],
+  studio:studio?'/studio/':null,
+  tafseer:studio?'/studio/?view=collections&collection=tafseer':null,
+  mothers:studio&&Boolean(mappedProgrammeContext(state,'mothers',mappings)),
+  hifz:mappedProgrammeContext(state,'hifz',mappings)?ORIGINS.hifz+'/':null
+ };
 }
 const permissionKey=state=>JSON.stringify([state.account.account_id,state.account.credential_epoch,state.account.global_admin,state.roles,state.contexts,state.subscriptions,state.monthlyMedia]);
 export function portalConfiguration(){const h=hosting();return {academyOrigin:h.academyPortalOrigin,studioOrigin:h.studioOrigin,hifzOrigin:h.hifzOrigin,authorityMode:'ACADEMY',nativePortal:true};}
@@ -71,7 +83,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   try{await admitted(repository,auth);await synchronizePortalAccount(env,repository.coreDb,auth.state.account.account_id,fetcher);}catch(error){await repository.revoke(auth.sid,auth.state.account.account_id);throw error;}
   return result;
  }
- const auth=await authenticate(request),state=auth.authority||auth.state;
+ const auth=await authenticate(request),state=auth.authority||auth.state,local=nativeAuthContext(auth);
  await admitted(repository,auth);
  const before=permissionKey(state),current=async()=>{
   const latest=await authenticate(request);await admitted(repository,latest);
@@ -85,24 +97,32 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   const produce=async()=>dashboardSummary(state,env,selection,(p,b,m)=>read(p,b,m,request),await nativeScopes());
   // Preserve the existing native snapshot readers. A combined cache needs a
   // proven Core/Admin revision vector covering notes, messages and enrolment.
-  const data=await produce();
-  await current();return {...data,serverTime:Date.now()};
+  const [data,entryLinks]=await Promise.all([produce(),local?academyAppLinks(repository.coreDb,state,env):null]);
+  await current();return {...data,...(local?{entryLinks}:{}),serverTime:Date.now()};
  };
  if(path==='/api/academy/hub/refresh'){only(input,[]);await synchronizePortalAccount(env,repository.coreDb,state.account.account_id,fetcher);await current();return {verifiedAt:Date.now()};}
  if(path==='/api/academy/hub/studio-join'){only(input,['offeringId','sessionId']);return studio({action:'join',offeringId:id(input.offeringId),sessionId:id(input.sessionId)});}
  if(path==='/api/academy/hub/read'){
   only(input,['kind','input']);const value=input.input||{};
-  if(input.kind==='navigation'){only(value,[]);return (await studio({action:'navigation'})).navigation;}
+  if(input.kind==='navigation'){
+   only(value,[]);
+   if(!local)return (await studio({action:'navigation'})).navigation;
+   const entryLinks=await academyAppLinks(repository.coreDb,state,env);
+   await current();return entryLinks;
+  }
   if(input.kind==='access'){only(value,['websiteIds']);return (await studio({action:'access',websiteIds:value.websiteIds})).rights;}
-  if(input.kind==='dashboard'){const [data,summary]=await Promise.all([dashboard(value),studio({action:'bootstrap'})]);return portalDashboardLinks(data,summary);}
+  if(input.kind==='dashboard'){
+   const [data,summary]=await Promise.all([dashboard(value),local?null:studio({action:'bootstrap'})]);
+   return portalDashboardLinks(data,summary);
+  }
   if(input.kind!=='bootstrap')throw fail('Choose a valid Academy view.');
   only(value,['mode','preferredMode','preferredAccount']);
   const mode=value.mode||value.preferredAccount===state.account.account_id&&value.preferredMode||undefined;
-  const local=nativeAuthContext(auth),claims=local?null:await verifySessionToken((request.headers.get('Authorization')||'').slice(7),env);
+  const claims=local?null:await verifySessionToken((request.headers.get('Authorization')||'').slice(7),env);
   const account={accountId:state.account.account_id,displayName:state.account.display_name,globalAdmin:Boolean(state.account.global_admin),cacheSession:await sha256(auth.sid),...(local?{authVersion:2,validationDeadlineMs:local.cap.deadline*1000,originalExpiresAtMs:local.cap.binding.s_exp*1000}:{verifiedAt:Math.min(Date.now(),claims.iat*1000),sessionExpiresAt:claims.exp*1000})};
-  const parts=await Promise.allSettled([studio({action:'bootstrap'}),dashboard(mode?{mode}:{})]),errors={};
+  const parts=await Promise.allSettled([local?null:studio({action:'bootstrap'}),dashboard(mode?{mode}:{})]),errors={};
   for(const [i,key]of ['navigation','dashboard'].entries())if(parts[i].status==='rejected'){const e=parts[i].reason;if(e.status===401||e.code==='ACCESS_REFRESH_REQUIRED')throw e;errors[key]={status:e.status||503,code:e.code||'UNAVAILABLE'};}
-  await current();return {configuration:config,account,navigation:parts[0].status==='fulfilled'?parts[0].value.navigation:null,dashboard:parts[1].status==='fulfilled'?portalDashboardLinks(parts[1].value,parts[0].status==='fulfilled'?parts[0].value:null):null,errors};
+  await current();return {configuration:config,account,navigation:local?parts[1].value?.entryLinks||null:parts[0].value?.navigation||null,dashboard:parts[1].status==='fulfilled'?portalDashboardLinks(parts[1].value,parts[0].status==='fulfilled'?parts[0].value:null):null,errors};
  }
  if(path==='/api/academy/hub/open'){
   only(input,['navigation','dashboard']);if(Boolean(input.navigation)===Boolean(input.dashboard))throw fail('Choose one destination.');

@@ -24,6 +24,7 @@ await patch('shared/canonical-circles.mjs',c=>c.replace("export const canonicalA
 for(const name of ['circles-login.mjs','circles-dashboard.mjs'])await copyFile(resolve(root,'portal-adapter',name),resolve(root,'portal',name));
 await copyFile(resolve(root,'portal-adapter/circles-sign-in.mjs'),resolve(root,'portal/shared/circles-sign-in.mjs'));
 await copyFile(resolve(root,'portal-adapter/dashboard-tafseer-data.mjs'),resolve(root,'portal/shared/dashboard-tafseer-data.mjs'));
+await copyFile(resolve(root,'portal-adapter/dashboard-programme-links.mjs'),resolve(root,'portal/shared/dashboard-programme-links.mjs'));
 for(const name of ['studio-authorize.mjs','studio-authorize.html','studio-enter.mjs','studio-enter.html'])await copyFile(resolve(root,'portal-adapter',name),resolve(root,'portal',name));
 async function index(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=resolve(dir,entry.name);if(entry.isDirectory())await index(file);else{const name=relative(resolve(root,'portal'),file);if(['assets.json','provenance.json'].includes(name))continue;manifest[name]=createHash('sha256').update(await readFile(file)).digest('hex');}}}
 await index(resolve(root,'portal'));

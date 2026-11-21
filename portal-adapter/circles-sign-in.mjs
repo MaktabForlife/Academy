@@ -8,10 +8,14 @@ export async function signInFromCircles(request,credentials,{current=()=>true,on
  onExchange();if(!current())throw new DOMException('Sign-in was closed.','AbortError');
  return request(bootstrap?'/api/circles/bootstrap':'/api/me');
 }
-export function openAcademyFromCircles({request,navigation,dashboard,window=globalThis.window,onError=()=>{},onReturn}){
+export function openAcademyFromCircles({request,navigation,dashboard,hifzDestination,window=globalThis.window,onError=()=>{},onReturn}){
  if(window.M4L_ACADEMY_AUTH?.selected){
   let closed=false;const auth=window.M4L_ACADEMY_AUTH;
-  if(navigation==='hifz'){auth.navigate(globalThis.AcademyHosting.hifzOrigin,{newTab:true}).catch(error=>onError(error.message));return {close(){closed=true;}};}
+  if(navigation==='hifz'){
+   if(!hifzDestination)throw Error('Hifz is unavailable for this Academy session.');
+   auth.navigate(hifzDestination,{newTab:true}).catch(error=>onError(error.message));
+   return {close(){}};
+  }
   request('/auth/native-open',{body:{...(navigation?{navigation}:{}),...(dashboard?{dashboard}:{})}}).then(async result=>{if(closed)return;if(result.authVersion!==2)throw Error('Academy returned an incompatible navigation reply.');const destination=new URL(result.destination,window.location.origin);if(destination.origin!==window.location.origin||!/^\/(?:academy|account|programs|users|recorder|activities)(?:\/|$)/.test(destination.pathname))throw Error('Invalid Academy destination.');await auth.navigate(destination.href);}).catch(error=>onError(error.message));return {close(){closed=true;}};
  }
  if(navigation==='hifz')return openLegacyAcademyFromCircles({academyOrigin:globalThis.AcademyHosting.academyLegacyOrigins[0],request,navigation,window,onError});

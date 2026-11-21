@@ -5,6 +5,7 @@ import {dashboardHTML,attentionRows,timetableProgrammes} from './shared/circles-
 import {sessionKey,mayOfferJoin,sessionSubject,sessionTime,localDay} from './shared/learning-circle.mjs';
 import {createDashboardJoin} from './shared/dashboard-join.mjs';
 import {esc} from './shared/model.mjs';
+import {dashboardProgrammeLinks} from './shared/dashboard-programme-links.mjs';
 
 export function circlesDashboard({onUpdate,openAcademy,show=()=>true,onWorkspace=()=>{},getNavigation=()=>null}){
  let data=null,available=[],mode=null,pending=false,error='',ticket=0,cacheOwner='',dataOwner='',clock=null,dialog=null,dialogOwner=null,status='';
@@ -15,7 +16,11 @@ export function circlesDashboard({onUpdate,openAcademy,show=()=>true,onWorkspace
  const rows=()=>current()?(data.timetable||[]):[];
  const displayRows=()=>mode==='teach'?teachingScheduleRows(rows(),{timezone:data.timezone}):rows();
  const context=()=>({account:identity.account,generation:identity.generation,mode,data,pending,visible:current()});
- function selectedNavigation(){const navigation=getNavigation();if(!navigation)return null;const permitted=new Set((data?.programmeNavigation||[]).map(row=>row.navigationKey));return {...navigation,academia:(navigation.academia||[]).filter(row=>permitted.has(row.key))};}
+ function selectedNavigation(){
+  const summary=current()?data:null;
+  const navigation=window.M4L_ACADEMY_AUTH?.selected?(summary&&(summary.entryLinks??getNavigation())):getNavigation();
+  return dashboardProgrammeLinks(summary,navigation);
+ }
  const join=createDashboardJoin({context,request:api,openWindow:()=>window.open('about:blank','_blank'),now:()=>Date.now(),onMessage:message=>{status=message;writeStatus();},onPending:()=>syncJoinButtons()});
  function writeStatus(){const el=document.querySelector('#circles-dashboard [data-circle-status]'),message=status||data?.checkedAt&&'Last checked '+new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:data.timezone}).format(new Date(data.checkedAt))||'';if(el&&el.textContent!==message)el.textContent=message;}
  function syncJoinButtons(){for(const button of document.querySelectorAll('#circles-dashboard [data-circle-join]'))button.disabled=join.pending;}
@@ -107,5 +112,5 @@ export function circlesDashboard({onUpdate,openAcademy,show=()=>true,onWorkspace
   if(control.hasAttribute('data-circle-dashboard')){handled();host.scrollIntoView({behavior:'smooth',block:'start'});return;}
   if(control.hasAttribute('data-circles-academy-action')){handled();let action;try{action=JSON.parse(control.dataset.circlesAcademyAction);}catch{return;}if(action.mode!==mode)return;if(action.tool==='calendar'&&mode!=='admin'){calendar();return;}if(action.tool==='home'&&!action.activityKey){allSessions();return;}openAcademy(null,action);}
  },true);
- return {refresh,load,clear,message(text){status=typeof text==='string'?text:'';writeStatus();},get data(){return current()?data:null;},get mode(){return mode;},get adminBadge(){return current()?data?.adminBadge:null;}};
+ return {refresh,load,clear,message(text){status=typeof text==='string'?text:'';writeStatus();},get data(){return current()?data:null;},get navigation(){return selectedNavigation();},get mode(){return mode;},get adminBadge(){return current()?data?.adminBadge:null;}};
 }

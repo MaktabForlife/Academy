@@ -4,6 +4,9 @@ import {dashboardChoice,dashboardSummary} from '../src/academy/d1/web-platform/d
 import {programmeChoice} from '../src/academy/d1/web-platform/navigation.mjs';
 import {selectWorkspace,guardWorkspace,readerPreview,actualRole} from '../src/academy/d1/workspace-access.js';
 import {academyDestination} from '../../academy/website-platform/connect/destinations.mjs';
+import {circleBlockChoices} from '../../portal/shared/circles-block-navigation.mjs';
+import {dashboardProgrammeLinks} from '../../portal/shared/dashboard-programme-links.mjs';
+import {dashboardHTML} from '../../portal/shared/circles-dashboard-view.mjs';
 
 const activity={activity_key:'PROGRAM:programme-one',activity_id:'programme-one',kind:'PROGRAM',active:true,lifecycle:'ACTIVE'},other={...activity,activity_key:'PROGRAM:programme-two',activity_id:'programme-two'};
 const ctx=role=>({scope:'COURSE',courseId:activity.activity_id,courseName:'Programme one',role});
@@ -70,4 +73,26 @@ test('programme navigation uses current exact mappings and selected authority wi
  const teacher=await dashboardSummary(state(false,[ctx('TEACHER')]),env,{mode:'teach'},read);assert.deepEqual(teacher.programmeNavigation,[{navigationKey:'alimiyah',activityKey:activity.activity_key}]);
  const learner=await dashboardSummary(state(false,[ctx('STUDENT')]),env,{mode:'learn'},read);assert.deepEqual(learner.programmeNavigation,[{navigationKey:'alimiyah',activityKey:activity.activity_key}]);
  const withdrawn={...global,activities:[{...activity,active:false},{...other,lifecycle:'ARCHIVED'}]};assert.deepEqual((await dashboardSummary(withdrawn,env,{mode:'teach'},read)).programmeNavigation,[]);
+});
+
+test('Academy programme links render from the checked dashboard even when website navigation is unavailable',async()=>{
+ const env={WEBSITE_PLATFORM_NAVIGATION:JSON.stringify({alimiyah:activity.activity_id,reboot:other.activity_id})};
+ const read=async path=>path==='/api/academy/entrance'
+  ?{startDate:'2026-11-01',endDate:'2026-11-07',timezone:'Africa/Johannesburg',personalActivities:[],personalTimetable:[]}
+  :{assessments:[]};
+ const learner=state(false,[ctx('STUDENT')]);
+ const summary=await dashboardSummary(learner,env,{mode:'learn'},read);
+ const navigation=dashboardProgrammeLinks(summary,null);
+ const html=dashboardHTML(summary,{navigation,now:Date.parse('2026-11-02T08:00:00Z')});
+ assert.deepEqual(navigation.academia,[{key:'alimiyah',label:'Aalimiyah'}]);
+ assert.match(html,/data-programme-key="alimiyah"/);
+ assert.match(circleBlockChoices('academy',navigation),/data-programme-key="alimiyah"/);
+ assert.doesNotMatch(html,/data-programme-key="reboot"/);
+
+ const websiteNavigation={academia:[{key:'reboot',label:'Reboot'}],mothers:true,shortCourses:[{label:'Checked course'}]};
+ assert.deepEqual(dashboardProgrammeLinks(summary,websiteNavigation),{...websiteNavigation,academia:navigation.academia});
+ assert.deepEqual(dashboardProgrammeLinks(null,websiteNavigation).academia,[]);
+ const withdrawn={...learner,activities:[{...activity,active:false},other]};
+ const checkedAgain=await dashboardSummary(withdrawn,env,{mode:'learn'},read);
+ assert.deepEqual(dashboardProgrammeLinks(checkedAgain,websiteNavigation).academia,[]);
 });

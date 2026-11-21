@@ -38,9 +38,10 @@ export function dashboardHTML(data,context={}){
  const day=new Intl.DateTimeFormat('en-GB',{timeZone:data.timezone,weekday:'long',day:'numeric',month:'long'}).format(new Date(selection.date+'T12:00:00Z'));
  const links=[];
  for(const row of navigation?.academia||[])links.push(`<a class="circles-programme-link" href="/?login=1&area=academy" data-programme-key="${esc(row.key)}"><span>${esc(row.label)}</span><span aria-hidden="true">↗</span></a>`);
+ if(navigation?.studio)links.push(`<a class="circles-programme-link" href="${esc(navigation.studio)}"><span>Studio</span><span aria-hidden="true">↗</span></a>`);
  if(navigation?.tafseer)links.push(`<a class="circles-programme-link" data-circle-tafseer-link href="${esc(navigation.tafseer)}"><span>Tafseer and Tadabbur</span><span aria-hidden="true">↗</span></a>`);
  if(navigation?.mothers)links.push('<a class="circles-programme-link" href="/studio/?classroom=mothers"><span>Mothers of the Ummah</span><span aria-hidden="true">↗</span></a>');
- if(navigation?.hifz)links.push(`<a class="circles-programme-link" href="${esc(navigation.hifz)}" data-programme-key="hifz"><span>Ma’had Arwa<small>Hifz Academy</small></span><span aria-hidden="true">↗</span></a>`);
+ if(navigation?.hifz)links.push(`<a class="circles-programme-link" href="${esc(navigation.hifz)}" target="_blank" rel="noopener" data-programme-key="hifz"><span>Ma’had Arwa<small>Hifz Academy</small></span><span aria-hidden="true">↗</span></a>`);
  if(context.globalAdmin===true&&mode==='learn')links.push('<button type="button" class="circles-programme-link" data-circles-arabic-coming-soon><span>Arabic Adventures<small>Coming soon</small></span><span aria-hidden="true">↗</span></button>');
  const manage=mode==='admin'?`<section class="circles-manage" aria-labelledby="circles-manage-title"><p class="eyebrow" id="circles-manage-title">MANAGE</p><nav aria-label="Management">${go('Users','users')}${go('Access','access')}${go('Curriculum','curriculum')}${go('Intehaan','assessment')}<button type="button" data-circle-media>Media</button></nav></section>`:'';
  const programmes=mode==='admin'?'':`<section class="circles-programme-links" aria-label="Your programmes">${links.join('')||'<p>Your available programme links will appear after access is checked.</p>'}</section>`;

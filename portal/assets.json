@@ -113,6 +113,7 @@
   "shared/dashboard-bootstrap.mjs",
   "shared/dashboard-home.mjs",
   "shared/dashboard-join.mjs",
+  "shared/dashboard-programme-links.mjs",
   "shared/dashboard-tafseer-data.mjs",
   "shared/device-learning.mjs",
   "shared/existing-collection.mjs",
