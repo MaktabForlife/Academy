@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "V111-M4-P5-ACADEMY-DASHBOARD-CHILD-ENTRY-20261121-R2",
+    "reviewId": "V111-M4-P5-ACADEMY-DASHBOARD-CHILD-ENTRY-20261121-R3",
     "changes": [
       {
         "app": "Academy",
@@ -187,8 +187,8 @@
         "app": "Academy",
         "path": "portal/shared/circles-course-row.mjs",
         "beforeSHA256": "f8b4b8a086443c8c425239373ce57d81b83f20f7241d0023cae04ecf8d20f225",
-        "sha256": "5ddf50684335e2ada2593d345e01d3e72773731b094856db3f054b577a6807a1",
-        "bytes": 4634,
+        "sha256": "f1238db4e6139aabfb59952c09c46643f9e19020ccead0f69c43455f984404b2",
+        "bytes": 4650,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -1702,8 +1702,8 @@
         },
         {
           "path": "portal/shared/circles-course-row.mjs",
-          "sha256": "5ddf50684335e2ada2593d345e01d3e72773731b094856db3f054b577a6807a1",
-          "bytes": 4634
+          "sha256": "f1238db4e6139aabfb59952c09c46643f9e19020ccead0f69c43455f984404b2",
+          "bytes": 4650
         },
         {
           "path": "portal/shared/circles-dashboard-view.mjs",

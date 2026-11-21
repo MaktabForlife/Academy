@@ -46,7 +46,7 @@ export function circlesCourseRow(document){
    section.querySelector('h2').textContent='My courses';
    const academyLinks=navigation&&Object.hasOwn(navigation,'studioAdmitted');
    section.querySelector('.branch-programme-intro').textContent=academyLinks
-    ?(navigation.studioAdmitted?'Open Courses to see your courses.':'Studio is unavailable for this account.')
+    ?(navigation.studioAdmitted?'Use Show all to view your courses.':'Course access is unavailable for this Academy account.')
     :'Your current and recent courses.';
    const all=document.createElement('a');all.href='/studio/?view=collections&collection=courses';all.className='circles-show-all-courses';all.textContent='Show all';all.setAttribute('aria-label','Show all courses');if(!academyLinks||navigation.studioAdmitted)section.querySelector('.section-head').append(all);
    publicTrack.id='circles-purchased-course-row';publicTrack.classList.add('circles-purchased-course-row');publicTrack.setAttribute('aria-label','Your paid courses');
