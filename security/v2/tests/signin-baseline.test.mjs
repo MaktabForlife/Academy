@@ -75,7 +75,10 @@ async function prepareSharedBaseline(f) {
  const reconcile=async app=>{
   const requestId=crypto.randomUUID();
   let page;
-  do{page=await offline(app,'reconcileBaselines',{requestId,pageToken:page?.nextPageToken??null});}while(page.nextPageToken);
+  for(let i=0;i<120;i++){
+   page=await offline(app,'reconcileBaselines',{requestId,pageToken:page?.nextPageToken??null});
+   if(!page.nextPageToken&&!page.continueApply)break;
+  }
   assert.equal(page.applied,true);
  };
  for(const app of apps)await reconcile(app);

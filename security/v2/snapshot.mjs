@@ -165,11 +165,14 @@ export class SnapshotStore {
    for(;;){const rows=await this.all('SELECT record_offset,record_json FROM jwt_v2_receive_records WHERE snapshot_id=? AND bucket=? AND record_offset>? ORDER BY record_offset LIMIT 20',snapshotId,bucket,offset);if(!rows.length)return;for(const r of rows){offset=r.record_offset;yield r.record_json;}}
   }else{
    let previous=null;
-   for(;;){const rows=await this.all('SELECT canonical_json FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND bucket=? AND canonical_json IS NOT NULL AND (? IS NULL OR CAST(canonical_json AS BLOB)>CAST(? AS BLOB)) ORDER BY CAST(canonical_json AS BLOB) LIMIT 20',snapshotId,bucket,previous,previous);if(!rows.length)return;for(const r of rows){previous=r.canonical_json;yield r.canonical_json;}}
+   for(;;){const rows=await this.all('SELECT canonical_json FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND bucket=? AND canonical_json IS NOT NULL AND (? IS NULL OR CAST(canonical_json AS BLOB)>CAST(? AS BLOB)) ORDER BY CAST(canonical_json AS BLOB) LIMIT 20',snapshotId,bucket,previous,previous);if(!rows.length)return;for(const r of rows){previous=r.canonical_json;yield r.canonical_json;}if(rows.length<20)return;}
   }
  }
- async *orderedRecords(snapshotId,schema){
-  for(const bucket of snapshotBuckets(schema))for await(const json of this.recordRows(snapshotId,bucket))yield {bucket,record:strictJSON(json),json};
+ async *orderedRecords(snapshotId,schema,counts){
+  for(const bucket of snapshotBuckets(schema)){
+   if(!counts[bucket])continue;
+   for await(const json of this.recordRows(snapshotId,bucket))yield {bucket,record:strictJSON(json),json};
+  }
  }
 }
 
@@ -180,47 +183,74 @@ export async function buildSnapshot({store,snapshotId,cursorKey,cursorKeyId,conf
  requireThat(['CAPTURED','BUILDING'].includes(capture.status),'SNAPSHOT_CAPTURE_INCOMPLETE',409);
  let ordinal=0;
  for(;;){
-  const rows=await store.all('SELECT ordinal,bucket,CASE WHEN length(CAST(raw_json AS BLOB))<=61440 THEN raw_json ELSE NULL END raw_json FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND ordinal>? ORDER BY ordinal LIMIT 20',snapshotId,ordinal);
-  if(!rows.length)break;
+  const rows=await store.all('SELECT ordinal,bucket,CASE WHEN length(CAST(raw_json AS BLOB))<=61440 THEN raw_json ELSE NULL END raw_json,canonical_json,semantic_key FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND ordinal>? ORDER BY ordinal LIMIT 20',snapshotId,ordinal);
+  const statements=[],clears=[];
   for(const row of rows){
    ordinal=row.ordinal;requireThat(row.raw_json!==null,'SNAPSHOT_RECORD_TOO_LARGE',503);
-   const record=validateRecord(row.bucket,strictJSON(row.raw_json),{...recordConfig,snapshotSchema:base.schema,ownerEpoch:base.ownerEpoch,recipientApp:base.recipientApp}),json=canonical(record);
+   const record=validateRecord(row.bucket,strictJSON(row.raw_json),{...recordConfig,snapshotSchema:base.schema,ownerEpoch:base.ownerEpoch,recipientApp:base.recipientApp}),json=canonical(record),key=semanticKey(record);
    requireThat(bytes(canonical({bucket:row.bucket,record})).length<=61438,'SNAPSHOT_RECORD_TOO_LARGE',503);
-   const old=await store.first('SELECT canonical_json,semantic_key FROM jwt_v2_reconcile_records WHERE ordinal=?',ordinal);
-   if(old.canonical_json!==null){requireThat(old.canonical_json===json&&old.semantic_key===semanticKey(record),'SNAPSHOT_RECORD_CONFLICT',409);continue;}
-   try{await store.stmt('UPDATE jwt_v2_reconcile_records SET canonical_json=?,semantic_key=? WHERE ordinal=?',json,semanticKey(record),ordinal).run();}
+   if(row.canonical_json!==null){
+    requireThat(row.canonical_json===json&&row.semantic_key===key,'SNAPSHOT_RECORD_CONFLICT',409);
+    continue;
+   }
+   statements.push(store.stmt('UPDATE jwt_v2_reconcile_records SET canonical_json=?,semantic_key=? WHERE snapshot_id=? AND ordinal=? AND canonical_json IS NULL',json,key,snapshotId,ordinal));
+   const [guard,clear]=store.guard('SELECT 1 FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND ordinal=? AND canonical_json=? AND semantic_key=?',[snapshotId,ordinal,json,key]);
+   statements.push(guard);clears.push(clear);
+  }
+  if(statements.length){
+   try{await store.batch([...statements,...clears]);}
    catch(error){reject('DUPLICATE_OR_CONFLICTING_SNAPSHOT_FACT',409);}
   }
+  if(rows.length<20)break;
  }
+ const present=Object.fromEntries((await store.all(
+  'SELECT bucket,count(*) AS records FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND canonical_json IS NOT NULL GROUP BY bucket',snapshotId
+ )).map(row=>[row.bucket,row.records]));
  const counts=Object.fromEntries(snapshotBuckets(base.schema).map(b=>[b,0]));let entries=[],offset=0,pageIndex=0;
- async function flush(){
-  const part={entries,offset,index:pageIndex},json=canonical(entries);
-  const prior=await store.first('SELECT * FROM jwt_v2_reconcile_parts WHERE snapshot_id=? AND page_index=?',snapshotId,pageIndex);
-  requireThat(!prior||prior.entries_json===json&&prior.record_offset===offset,'SNAPSHOT_PART_CONFLICT',409);
-  if(!prior)await store.stmt('INSERT INTO jwt_v2_reconcile_parts VALUES(?,?,?,?) ON CONFLICT(snapshot_id,page_index) DO NOTHING',snapshotId,pageIndex,offset,json).run();
-  const stored=await store.first('SELECT * FROM jwt_v2_reconcile_parts WHERE snapshot_id=? AND page_index=?',snapshotId,pageIndex);requireThat(stored.entries_json===json&&stored.record_offset===offset,'SNAPSHOT_PART_CONFLICT',409);
-  offset+=entries.length;pageIndex++;entries=[];return part;
+ const parts=[];
+ async function flushParts(){
+  if(!parts.length)return;
+  try{await store.batch(parts.splice(0));}
+  catch{reject('SNAPSHOT_PART_CONFLICT',409);}
  }
- for await(const entry of store.orderedRecords(snapshotId,base.schema)){
+ async function flush(){
+  const json=canonical(entries);
+  const [guard,clear]=store.guard('SELECT 1 FROM jwt_v2_reconcile_parts WHERE snapshot_id=? AND page_index=? AND record_offset=? AND entries_json=?',
+   [snapshotId,pageIndex,offset,json]);
+  parts.push(store.stmt('INSERT INTO jwt_v2_reconcile_parts VALUES(?,?,?,?) ON CONFLICT(snapshot_id,page_index) DO NOTHING',
+   snapshotId,pageIndex,offset,json),guard,clear);
+  if(parts.length===24)await flushParts();
+  offset+=entries.length;pageIndex++;entries=[];
+ }
+ for await(const entry of store.orderedRecords(snapshotId,base.schema,present)){
   const wire={bucket:entry.bucket,record:entry.record};
   if(entries.length&&(entries.length===20||bytes(canonical([...entries,wire])).length>61440))await flush();
   entries.push(wire);counts[entry.bucket]++;requireThat(safeInt(counts[entry.bucket]),'SNAPSHOT_COUNT_OVERFLOW',503);
  }
  if(entries.length||pageIndex===0)await flush();
+ await flushParts();
  const metadata={...base,totalRecords:offset,bucketCounts:counts,pageCount:pageIndex};validateMetadata(metadata,config,now);
- const snapshotDigest=await streamingSnapshotDigest(metadata,b=>store.recordRows(snapshotId,b),{digestStreamFactory});
+ const snapshotDigest=await streamingSnapshotDigest(metadata,b=>present[b]?store.recordRows(snapshotId,b):[],{digestStreamFactory});
  await store.stmt("UPDATE jwt_v2_reconcile_captures SET status='BUILDING',metadata_json=?,snapshot_digest=? WHERE snapshot_id=? AND status IN('CAPTURED','BUILDING')",canonical(metadata),snapshotDigest,snapshotId).run();
  let previousPageDigest=await domainDigest(snapshotDomain(metadata,'snapshot-start'),{metadata,snapshotDigest}),requestToken=null;
- for(let i=0;i<pageIndex;i++){
-  const part=await store.first('SELECT * FROM jwt_v2_reconcile_parts WHERE snapshot_id=? AND page_index=?',snapshotId,i);requireThat(part,'SNAPSHOT_PART_MISSING',409);
-  const nextPageToken=i===pageIndex-1?null:await snapshotCursor(metadata,snapshotDigest,i+1,cursorKey);
-  const page={...metadata,mode:'SNAPSHOT',snapshotDigest,pageIndex:i,recordOffset:part.record_offset,entries:strictJSON(part.entries_json),previousPageDigest,nextPageToken};
-  page.pageDigest=await domainDigest(snapshotDomain(metadata,'snapshot-page'),page);const json=canonical(page);
-  requireThat(bytes(json).length<=65536,'SNAPSHOT_PAGE_TOO_LARGE',503);
-  const prior=await store.first('SELECT page_json FROM jwt_v2_reconcile_pages WHERE snapshot_id=? AND page_index=?',snapshotId,i);requireThat(!prior||prior.page_json===json,'SNAPSHOT_PAGE_CONFLICT',409);
-  if(!prior)await store.stmt('INSERT INTO jwt_v2_reconcile_pages VALUES(?,?,?,?) ON CONFLICT(snapshot_id,page_index) DO NOTHING',snapshotId,i,requestToken,json).run();
-  const stored=await store.first('SELECT * FROM jwt_v2_reconcile_pages WHERE snapshot_id=? AND page_index=?',snapshotId,i);requireThat(stored.page_json===json&&stored.request_token===requestToken,'SNAPSHOT_PAGE_CONFLICT',409);
-  previousPageDigest=page.pageDigest;requestToken=nextPageToken;
+ for(let first=0;first<pageIndex;first+=8){
+  const selected=await store.all('SELECT * FROM jwt_v2_reconcile_parts WHERE snapshot_id=? AND page_index>=? ORDER BY page_index LIMIT 8',snapshotId,first);
+  requireThat(selected.length===Math.min(8,pageIndex-first)&&selected.every((part,index)=>part.page_index===first+index),'SNAPSHOT_PART_MISSING',409);
+  const pages=[];
+  for(const part of selected){
+   const i=part.page_index;
+   const nextPageToken=i===pageIndex-1?null:await snapshotCursor(metadata,snapshotDigest,i+1,cursorKey);
+   const page={...metadata,mode:'SNAPSHOT',snapshotDigest,pageIndex:i,recordOffset:part.record_offset,entries:strictJSON(part.entries_json),previousPageDigest,nextPageToken};
+   page.pageDigest=await domainDigest(snapshotDomain(metadata,'snapshot-page'),page);const json=canonical(page);
+   requireThat(bytes(json).length<=65536,'SNAPSHOT_PAGE_TOO_LARGE',503);
+   const [guard,clear]=store.guard('SELECT 1 FROM jwt_v2_reconcile_pages WHERE snapshot_id=? AND page_index=? AND page_json=? AND request_token IS ?',
+    [snapshotId,i,json,requestToken]);
+   pages.push(store.stmt('INSERT INTO jwt_v2_reconcile_pages VALUES(?,?,?,?) ON CONFLICT(snapshot_id,page_index) DO NOTHING',
+    snapshotId,i,requestToken,json),guard,clear);
+   previousPageDigest=page.pageDigest;requestToken=nextPageToken;
+  }
+  try{await store.batch(pages);}
+  catch{reject('SNAPSHOT_PAGE_CONFLICT',409);}
  }
  validateMetadata(metadata,config,Math.max(now,clock()));
  const [g,clear]=store.guard('SELECT 1 FROM jwt_v2_reconcile_captures WHERE snapshot_id=? AND status=? AND metadata_json=? AND snapshot_digest=?',[snapshotId,'BUILDING',canonical(metadata),snapshotDigest]);
@@ -312,6 +342,13 @@ export class SnapshotReceiver {
   const count=await this.store.first('SELECT count(*) n FROM jwt_v2_receive_pages WHERE snapshot_id=?',snapshotId);
   if(count.n<meta.pageCount)return {status:'STAGED',complete:false,snapshotId};
   requireThat(count.n===meta.pageCount,'EXTRA_SNAPSHOT_PAGE',409);
+  if(capture.status==='VERIFIED'||capture.status==='APPLIED'){
+   // A verified header only follows the complete chained digest check. The
+   // stored pages and records are immutable. Keep request and expiry checks.
+   const staged=await this.store.first('SELECT count(*) n FROM jwt_v2_receive_records WHERE snapshot_id=?',snapshotId);
+   requireThat(staged.n===meta.totalRecords,'SNAPSHOT_COUNT_CONFLICT',409);
+   return {status:capture.status,complete:true,snapshotId,publicationPending:capture.status!=='APPLIED'};
+  }
   let previousDigest=await domainDigest(snapshotDomain(meta,'snapshot-start'),{metadata:meta,snapshotDigest:capture.snapshot_digest}),offset=0,previousRecord=null,previousEntries=null;
   const counts=Object.fromEntries(snapshotBuckets(meta.schema).map(b=>[b,0]));
   for(let index=0;index<meta.pageCount;index++){
@@ -320,33 +357,45 @@ export class SnapshotReceiver {
    requireThat(page.pageIndex===index&&page.recordOffset===offset&&page.previousPageDigest===previousDigest&&canonical(pick(page,META))===capture.metadata_json&&page.snapshotDigest===capture.snapshot_digest,'SNAPSHOT_CHAIN_OR_OFFSET',409);
    const unsigned=Object.fromEntries(Object.entries(page).filter(([k])=>k!=='pageDigest'));requireThat(page.pageDigest===await domainDigest(snapshotDomain(meta,'snapshot-page'),unsigned),'SNAPSHOT_PAGE_DIGEST',409);
    if(previousEntries&&previousEntries.length<20)requireThat(bytes(canonical([...previousEntries,page.entries[0]])).length>61440,'NON_GREEDY_SNAPSHOT_PARTITION',409);
+   const statements=[],clears=[];
    for(const entry of page.entries){
     const current={bucket:entry.bucket,json:canonical(entry.record)};
-    requireThat(ordered(previousRecord,current),'SNAPSHOT_RECORD_ORDER',409);previousRecord=current;counts[entry.bucket]++;
-    const old=await this.store.first('SELECT * FROM jwt_v2_receive_records WHERE snapshot_id=? AND record_offset=?',snapshotId,offset);
-    requireThat(!old||old.bucket===entry.bucket&&old.record_json===current.json,'SNAPSHOT_RECORD_CONFLICT',409);
-    if(!old){
-     try{await this.store.stmt('INSERT INTO jwt_v2_receive_records VALUES(?,?,?,?,?,?) ON CONFLICT(snapshot_id,record_offset) DO NOTHING',snapshotId,offset,entry.bucket,current.json,await digest(entry.record),semanticKey(entry.record)).run();
-      const stored=await this.store.first('SELECT * FROM jwt_v2_receive_records WHERE snapshot_id=? AND record_offset=?',snapshotId,offset);requireThat(stored.bucket===entry.bucket&&stored.record_json===current.json&&stored.semantic_key===semanticKey(entry.record),'SNAPSHOT_RECORD_CONFLICT',409);}
-     catch{reject('DUPLICATE_OR_CONFLICTING_SNAPSHOT_FACT',409);}
-    }
+    requireThat(ordered(previousRecord,current),'SNAPSHOT_RECORD_ORDER',409);
+    previousRecord=current;counts[entry.bucket]++;
+    const recordDigest=await digest(entry.record),key=semanticKey(entry.record);
+    const [guard,clear]=this.store.guard('SELECT 1 FROM jwt_v2_receive_records WHERE snapshot_id=? AND record_offset=? AND bucket=? AND record_json=? AND record_digest=? AND semantic_key=?',
+     [snapshotId,offset,entry.bucket,current.json,recordDigest,key]);
+    statements.push(this.store.stmt('INSERT INTO jwt_v2_receive_records VALUES(?,?,?,?,?,?) ON CONFLICT(snapshot_id,record_offset) DO NOTHING',
+     snapshotId,offset,entry.bucket,current.json,recordDigest,key),guard);
+    clears.push(clear);
     offset++;
+   }
+   if(statements.length){
+    try{await this.store.batch([...statements,...clears]);}
+    catch{reject('DUPLICATE_OR_CONFLICTING_SNAPSHOT_FACT',409);}
    }
    previousDigest=page.pageDigest;previousEntries=page.entries;
   }
   requireThat(offset===meta.totalRecords&&canonical(counts)===canonical(meta.bucketCounts),'SNAPSHOT_COUNT_CONFLICT',409);
-  const actual=await streamingSnapshotDigest(meta,b=>this.store.recordRows(snapshotId,b,{receiver:true}),{digestStreamFactory:this.digestStreamFactory});
+  const actual=await streamingSnapshotDigest(meta,b=>meta.bucketCounts[b]?this.store.recordRows(snapshotId,b,{receiver:true}):[],{digestStreamFactory:this.digestStreamFactory});
   requireThat(equal(actual,capture.snapshot_digest),'SNAPSHOT_FINAL_DIGEST',409);
   validateMetadata(meta,this.config,Math.max(now,this.clock()));
   await this.store.stmt("UPDATE jwt_v2_receive_snapshots SET status=CASE WHEN status='APPLIED' THEN status ELSE 'VERIFIED' END WHERE snapshot_id=?",snapshotId).run();
   return {status:capture.status==='APPLIED'?'APPLIED':'VERIFIED',complete:true,snapshotId,publicationPending:capture.status!=='APPLIED'};
  }
- async applyRecords(snapshotId,{now,planEffect}){
+ async applyRecords(snapshotId,{now,planEffect,limit=null}){
   const verified=await this.verify(snapshotId,{now});requireThat(verified.complete,'SNAPSHOT_INCOMPLETE',409);
   const capture=await this.store.first('SELECT metadata_json FROM jwt_v2_receive_snapshots WHERE snapshot_id=?',snapshotId),metadata=strictJSON(capture.metadata_json);
-  let offset=-1;
+  requireThat(limit===null||safeInt(limit,1)&&limit<=4,'INVALID_SNAPSHOT_EFFECT_LIMIT',503);
+  let offset=-1,processed=0;
   for(;;){
-   const rows=await this.store.all('SELECT * FROM jwt_v2_receive_records WHERE snapshot_id=? AND record_offset>? ORDER BY record_offset LIMIT 20',snapshotId,offset);if(!rows.length)break;
+   const rows=limit===null
+    ?await this.store.all('SELECT * FROM jwt_v2_receive_records WHERE snapshot_id=? AND record_offset>? ORDER BY record_offset LIMIT 20',snapshotId,offset)
+    :await this.store.all(`SELECT r.* FROM jwt_v2_receive_records r
+     WHERE r.snapshot_id=? AND NOT EXISTS(SELECT 1 FROM jwt_v2_snapshot_effects e
+      WHERE e.snapshot_id=r.snapshot_id AND e.record_offset=r.record_offset)
+     ORDER BY r.record_offset LIMIT ?`,snapshotId,limit);
+   if(!rows.length)break;
    for(const row of rows){
     offset=row.record_offset;const old=await this.store.first('SELECT e.*,w.target_json,w.scope_sub FROM jwt_v2_snapshot_effects e JOIN jwt_v2_worksets w ON w.work_id=e.work_id WHERE e.snapshot_id=? AND e.record_offset=?',snapshotId,offset);if(old){const scoped=snapshotEffect(strictJSON(row.record_json));requireThat(old.record_digest===row.record_digest&&old.target_json===canonical(scoped.target)&&(old.scope_sub??null)===scoped.scopeSub,'SNAPSHOT_APPLICATION_CONFLICT',409);continue;}
     validateMetadata(metadata,this.config,Math.max(now,this.clock()));
@@ -358,8 +407,11 @@ export class SnapshotReceiver {
      const [coverage,coverageClear]=this.store.guard('SELECT 1 FROM jwt_v2_worksets WHERE work_id=? AND target_json=? AND scope_sub IS ?',[effect.workId,canonical(expected.target),expected.scopeSub]);
     try{await this.store.batch([g,...effect.statements,coverage,this.store.stmt('INSERT INTO jwt_v2_snapshot_effects VALUES(?,?,?,?)',snapshotId,offset,row.record_digest,effect.workId),coverageClear,clear]);}
     catch(error){const raced=await this.store.first('SELECT e.*,w.target_json,w.scope_sub FROM jwt_v2_snapshot_effects e JOIN jwt_v2_worksets w ON w.work_id=e.work_id WHERE e.snapshot_id=? AND e.record_offset=?',snapshotId,offset);if(!raced)throw error;requireThat(raced.record_digest===row.record_digest&&raced.work_id===effect.workId&&raced.target_json===canonical(expected.target)&&(raced.scope_sub??null)===expected.scopeSub,'SNAPSHOT_APPLICATION_CONFLICT',409);}
+    processed++;
    }
+   if(limit!==null)break;
   }
+  if(limit!==null)return {snapshotId,processed};
   return this.finishApplied(snapshotId,{now});
  }
  async finishApplied(snapshotId,{now}){

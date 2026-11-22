@@ -351,7 +351,23 @@ export class BrowserSession{
  }
  async #exit(kind,input={}){
   const previous=this.getContext();this.clearAvailable({reason:kind.toUpperCase()}).catch(()=>{});
-  try{const boot=await this.#raw('/auth/v2/bootstrap',{purpose:kind,expectedContext:previous},{expected:previous,guard:false});need(boot.context&&(!previous||same(boot.context,previous,STABLE))&&boot.intent&&boot.csrf,'EXIT_CONTEXT_CHANGED');const dto=await this.#raw('/auth/v2/'+kind,{...input,operationId:boot.intent.id,expectedContext:boot.context},{expected:boot.context,csrf:boot.csrf,guard:false});this.#unconfirmed=dto.outcome==='GLOBAL_UNCONFIRMED';return dto;}
+  const version=this.#controlVersion;
+  try{
+   const boot=await this.#raw('/auth/v2/bootstrap',{purpose:kind,expectedContext:previous},{expected:previous,guard:false});
+   need(boot.context&&(!previous||same(boot.context,previous,STABLE))&&boot.intent&&boot.csrf,'EXIT_CONTEXT_CHANGED');
+   const body={...input,operationId:boot.intent.id,expectedContext:boot.context};
+   for(let attempt=0;;attempt++){
+    need(this.#controlVersion===version,'EXIT_CONTEXT_CHANGED');
+    try{
+     const dto=await this.#raw('/auth/v2/'+kind,body,{expected:boot.context,csrf:boot.csrf,guard:false});
+     this.#unconfirmed=dto.outcome==='GLOBAL_UNCONFIRMED';
+     return dto;
+    }catch(error){
+     const retryable=['LOGOUT_PUBLICATION_PENDING','AUTH_TRANSPORT_UNAVAILABLE'].includes(error.code)||error.status>=500;
+     if(this.#app!=='academy'||kind!=='logout'||attempt>=7||!retryable)throw error;
+    }
+   }
+  }
   catch(error){this.#unconfirmed=true;this.#mask('GLOBAL_UNCONFIRMED');return {contractVersion:2,success:false,state:'SIGNED_OUT',outcome:'GLOBAL_UNCONFIRMED',code:error.code||'EXIT_UNAVAILABLE'};}
  }
  logout(){return this.#exit('logout');}switchAccount(input){return this.#exit('switch',input);}

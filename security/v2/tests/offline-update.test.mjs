@@ -188,8 +188,10 @@ test('an offline update revokes all three owning sessions and applies the exact 
    runtime.settings.raw.sharedChildEntry={ownerEpoch:'fixture-account-stream',notBefore:f.now()};
    const requestId=crypto.randomUUID();
    let page={nextPageToken:null};
-   do{page=await step(runtime,'reconcileBaselines',{requestId,pageToken:page.nextPageToken});}
-   while(page.nextPageToken);
+   for(let i=0;i<120;i++){
+    page=await step(runtime,'reconcileBaselines',{requestId,pageToken:page.nextPageToken});
+    if(!page.nextPageToken&&!page.continueApply)break;
+   }
    assert.equal(page.applied,true);
    const verified=await f.runtimes[app].store.first('SELECT ae,snapshot_id FROM jwt_v2_shared_account_baselines WHERE sub=?',f.sub);
    assert.deepEqual([verified.ae,verified.snapshot_id],[academy.context.ae+1,page.snapshotId]);

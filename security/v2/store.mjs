@@ -12,6 +12,12 @@ export class PrimaryStore {
  // outlive one request, so authority reads must not reuse their old read session.
  first(sql,...args){return this.owningDB.withSession('first-primary').prepare(sql).bind(...args).first();}
  all(sql,...args){return this.owningDB.withSession('first-primary').prepare(sql).bind(...args).all().then(r=>r.results);}
+ async readBatch(queries){
+  const session=this.owningDB.withSession('first-primary');
+  const results=await session.batch(queries.map(([sql,...args])=>session.prepare(sql).bind(...args)));
+  requireThat(results.length===queries.length&&results.every(result=>result.success===true&&Array.isArray(result.results)),'PRIMARY_READ_BATCH_UNAVAILABLE',503);
+  return results.map(result=>result.results);
+ }
  batch(items){return this.db.batch(this.academyFence?[this.stmt("INSERT INTO jwt_v2_guards(id,accepted) SELECT 'native-split-fence',NOT EXISTS(SELECT 1 FROM split_write_fence) ON CONFLICT(id) DO UPDATE SET accepted=excluded.accepted"),...items,this.stmt("DELETE FROM jwt_v2_guards WHERE id='native-split-fence'")]:items);}
  guard(sql,args=[]){const id=crypto.randomUUID();return [this.stmt('INSERT INTO jwt_v2_guards(id,accepted) SELECT ?,EXISTS('+sql+')',id,...args),this.stmt('DELETE FROM jwt_v2_guards WHERE id=?',id)];}
  async claimSeed({key,incarnation,generation,nonce}){
@@ -113,9 +119,14 @@ export class PrimaryStore {
   requireThat(['VOLUNTARY_LOGOUT','VERIFIED_REFRESH_REUSE','SUSPICIOUS_ACTIVITY','CONFIRMED_KEY_COMPROMISE','ACCOUNT_DISABLED','OFFLINE_UPDATE'].includes(kind),'INVALID_CUTOFF',400);
   const offline=kind==='OFFLINE_UPDATE';
   requireThat(offline?typeof offlineUpdateRef==='string'&&/^offline-update:[1-9][0-9]{0,15}:[\x21-\x7e]{1,80}$/.test(offlineUpdateRef):offlineUpdateRef===undefined,'INVALID_OFFLINE_UPDATE_REFERENCE',400);
-  const requestDigest=await digest({sub,ce,ae,kind,...(offline?{offlineUpdateRef}:{})}),old=await this.first('SELECT * FROM jwt_v2_operations WHERE operation_id=?',operationId);
+  const requestDigest=await digest({sub,ce,ae,kind,...(offline?{offlineUpdateRef}:{})});
+  const [[old],[a],streams]=await this.readBatch([
+   ['SELECT * FROM jwt_v2_operations WHERE operation_id=?',operationId],
+   ['SELECT * FROM jwt_v2_accounts WHERE sub=?',sub],
+   ["SELECT * FROM jwt_v2_sender_streams WHERE target_app IN ('studio','hifz') AND stream='account-security'"]
+  ]);
   if(old){requireThat(old.request_digest===requestDigest,'OPERATION_CONFLICT',409);return JSON.parse(old.result_json);}
-  const a=await this.first('SELECT * FROM jwt_v2_accounts WHERE sub=?',sub);requireThat(a,'ACCOUNT_UNAVAILABLE',503);
+  requireThat(a,'ACCOUNT_UNAVAILABLE',503);
   if(ce<a.ce||(ce===a.ce&&ae<a.ae)){
    const receipt=await this.first('SELECT operation_id,target_json FROM jwt_v2_cutoffs WHERE sub=? AND ce=? AND ae=?',sub,ce,ae);
    return receipt?{status:'ALREADY_COVERED',cutoff:JSON.parse(receipt.target_json),receipt:receipt.operation_id}:{status:'RECONCILIATION_REQUIRED',cutoff:null};
@@ -126,7 +137,7 @@ export class PrimaryStore {
   const localWork=await restrictionPlan(this,{workId:operationId,target:cutoff,now});
   const outbox=[],streamGuards=[],streamUpdates=[],streamClears=[];
   for(const targetApp of ['studio','hifz']){
-   const stream=await this.first('SELECT * FROM jwt_v2_sender_streams WHERE target_app=? AND stream=?',targetApp,'account-security');
+   const stream=streams.find(row=>row.target_app===targetApp);
    requireThat(stream&&safeInt(stream.next_sequence+1,1),'OUTBOX_STREAM_UNAVAILABLE',503);
    const e={schema:2,env:this.env,sourceApp:'academy',targetApp,eventId:crypto.randomUUID(),operationId,stream:stream.stream,ownerEpoch:stream.owner_epoch,sequence:stream.next_sequence,sub,kind:'account-revoked',target:cutoff,committedAt:now,commitRef:offline?offlineUpdateRef:operationId};
    e.digest=await digest(e);outbox.push(e);

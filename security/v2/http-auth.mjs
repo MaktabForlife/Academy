@@ -45,12 +45,20 @@ async function status(runtime,request,body){
 }
 async function exit(runtime,request,body,kind){
  const c=await current(runtime,request,{spent:true});requireThat(c&&!c.historical&&c.family,'CURRENT_REFRESH_REQUIRED',401);
- const f=c.family,context=selector(JSON.parse(f.binding_json),runtime.app);requireExpected(context,expectedContext(request,body));await runtime.intents.verify(request,{operationId:body.operationId,purpose:kind,context});
- requireThat(runtime.clock()<f.s_exp&&!['REVOKED','EXPIRED'].includes(f.state),'SESSION_ENDED',401);
+ const f=c.family,context=selector(JSON.parse(f.binding_json),runtime.app);
+ requireExpected(context,expectedContext(request,body));
+ const {row:intent}=await runtime.intents.verify(request,{operationId:body.operationId,purpose:kind,context});
+ const academyLogout=kind==='logout'&&runtime.app==='academy';
+ requireThat(runtime.clock()<f.s_exp&&f.state!=='EXPIRED'&&
+  (f.state!=='REVOKED'||academyLogout&&intent.sid===f.sid&&intent.state==='CANCELLED'&&intent.superseding_operation===body.operationId),'SESSION_ENDED',401);
  let outcome,canonicalAccepted=false,globalConfirmed=false;
- if(kind==='logout'&&runtime.app==='academy'){
-  const result=await runtime.store.acceptCutoff({sub:f.sub,ce:f.ce,ae:f.ae,operationId:body.operationId,kind:'VOLUNTARY_LOGOUT',now:runtime.clock()});requireThat(['ACCEPTED','ALREADY_COVERED'].includes(result.status),'LOGOUT_RECONCILIATION_REQUIRED',503);
-  requireThat(await runtime.publishPending(result.receipt),'LOGOUT_PUBLICATION_PENDING',503);outcome='ACCEPTED_PENDING';canonicalAccepted=true;
+ if(academyLogout){
+  const result=await runtime.store.acceptCutoff({sub:f.sub,ce:f.ce,ae:f.ae,operationId:body.operationId,kind:'VOLUNTARY_LOGOUT',now:runtime.clock()});
+  requireThat(['ACCEPTED','ALREADY_COVERED'].includes(result.status),'LOGOUT_RECONCILIATION_REQUIRED',503);
+  // The exact original holder and cancelled intent can continue this work
+  // after the cutoff commits. Only a fully published workset clears cookies.
+  requireThat(await runtime.publishPending(result.receipt,{limit:6}),'LOGOUT_PUBLICATION_PENDING',503);
+  outcome='ACCEPTED_PENDING';canonicalAccepted=true;
  }else if(kind==='logout'){
   const {runtimeServices}=await import('./runtime-service.mjs'),services=await runtimeServices(runtime),result=await services.queueReport({binding:JSON.parse(f.binding_json),kind:'logout',operationId:body.operationId,now:runtime.clock()});outcome=result?.outcome||'GLOBAL_UNCONFIRMED';canonicalAccepted=result?.canonicalAccepted===true;globalConfirmed=result?.globalConfirmed===true;
  }else{

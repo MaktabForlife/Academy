@@ -57,14 +57,18 @@ export class AppRuntime {
   return {...previous,...(updateGeneration===undefined?{}:{updateGeneration}),...(this.sharedAcademySessions?{academyPairMode:SHARED_PAIR_MODE,academyPairPending:null}:{}),binding,ownerVector:capture.ownerVector,rightsKey,rightsHash,deniedActions:previous.deniedActions||[],timedUntil:Math.min(binding.s_exp,capture.timedUntil),policyEpoch:app.policyEpoch,policyRevision:app.policyRevision,inactivityMinutes:app.inactivityMinutes,keyRegistryEpoch:app.keyRegistryEpoch,keyRegistryRevision:app.keyRegistryRevision,handoffRegistryRevision:app.handoffRegistryRevision??0,withdrawnHandoffKids:app.withdrawnHandoffKids||[],initialIssuance};
  }
  async publishFamily(sid,{initial=false}={}){
-  const f=await this.store.family(sid);requireThat(f,'SESSION_ENDED',401);
-  const saved=JSON.parse(f.projection_json),suffix='security/session/'+sid;
-  // The workset watermark records exactly which pre-existing SIDs a change
-  // must cover. New SIDs pass the atomic issuance-floor guard instead. Do not
-  // copy unrelated historical browser/account revocations into every control.
-  const restrictions=await this.store.all('SELECT w.target_json FROM jwt_v2_publications p JOIN jwt_v2_worksets w ON w.work_id=p.work_id WHERE p.sid=?',sid);
+  const suffix='security/session/'+sid;
+  // These reads describe a single committed version. SecurityCache still
+  // rechecks the family and lifecycle before publishing the R2 object.
+  const [[f],restrictions,[life]]=await this.store.readBatch([
+   ['SELECT * FROM jwt_v2_families WHERE sid=?',sid],
+   ['SELECT w.target_json FROM jwt_v2_publications p JOIN jwt_v2_worksets w ON w.work_id=p.work_id WHERE p.sid=?',sid],
+   ['SELECT * FROM jwt_v2_objects WHERE object_key=?',this.cache.key(suffix)]
+  ]);
+  requireThat(f,'SESSION_ENDED',401);
+  const saved=JSON.parse(f.projection_json);
   const enforcedTargets=compactFloors([...(saved.enforcedTargets||[]),...restrictions.map(r=>JSON.parse(r.target_json))]);
-  if(!await this.store.lifecycle(this.cache.key(suffix))){requireThat(initial&&f.sv===1&&f.fingerprint_generation===1&&f.cr===1,'SECURITY_INITIAL_PUBLICATION_REQUIRED',503);await this.cache.seed(suffix);}
+  if(!life){requireThat(initial&&f.sv===1&&f.fingerprint_generation===1&&f.cr===1,'SECURITY_INITIAL_PUBLICATION_REQUIRED',503);await this.cache.seed(suffix);}
   const academyPair=this.app==='academy'?academyCookiePairControl(f):null;
   const published={...saved};
   delete published.academyPairPending;
@@ -150,8 +154,8 @@ export class AppRuntime {
    ...(this.app==='academy'?[this.store.stmt("UPDATE jwt_v2_parents SET state=? WHERE psid=? AND state IN('UNLOCKED','LOCKED')",state,family.psid)]:[]),clear]);
   await this.publishFamily(family.sid);return this.store.family(family.sid);
  }
- async publishPending(workId){
-  const rows=await this.store.all('SELECT sid FROM jwt_v2_publications WHERE work_id=? AND published_cr IS NULL AND covered_by_expiry=0',workId);
+ async publishPending(workId,{limit=-1}={}){
+  const rows=await this.store.all('SELECT sid FROM jwt_v2_publications WHERE work_id=? AND published_cr IS NULL AND covered_by_expiry=0 ORDER BY sid LIMIT ?',workId,limit);
   for(const row of rows){const projection=await this.publishFamily(row.sid);await markSessionCovered(this.store,{workId,sid:row.sid,projection,controlKey:this.cache.key('security/session/'+row.sid),now:this.clock()});}
   return worksetApplied(this.store,workId);
  }

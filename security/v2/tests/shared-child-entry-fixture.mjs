@@ -66,7 +66,7 @@ export function digestStreamFactory(){
  return stream;
 }
 
-export async function installOwnedBaseline(f,recipient){
+export async function installOwnedBaseline(f,recipient,{afterApplyStep}={}){
  const ownerEpoch='fixture-account-stream',requestId=crypto.randomUUID(),runtime=f.runtimes[recipient];
  runtime.digestStreamFactory=digestStreamFactory;
  f.runtimes.academy.digestStreamFactory=digestStreamFactory;
@@ -79,6 +79,13 @@ export async function installOwnedBaseline(f,recipient){
   try{page=await serviceFetch(runtime,{targetApp:'academy',path:'/internal/auth/v2/reconcile',operationId:requestId,body});}catch(error){throw new Error(f.trace.at(-1)?.code||error.code,{cause:error});}
   body.pageToken=page.nextPageToken;
  }while(body.pageToken);
- return page;
+ const {runtimeServices}=await import('../runtime-service.mjs');
+ for(let i=0;i<120;i++){
+  const services=await runtimeServices(f.runtimes[recipient]);
+  const result=await services.advanceReconcileSnapshot(requestId);
+  if(result.status==='APPLIED')return page;
+  await afterApplyStep?.(result);
+ }
+ throw Error('Fixture snapshot publication did not complete');
 }
 
