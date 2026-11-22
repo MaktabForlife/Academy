@@ -36,7 +36,7 @@ export function createIndexedDBLeaderStore(indexedDB,{name='uaa-browser-control-
 export function createBrowserSession(options){return new BrowserSession(options);}
 export class BrowserSession{
  #pinRecovery=null;
- #app;#origin;#academy;#fetch;#crypto;#ss;#ls;#locks;#leader;#channel;#clock;#mono;#maskView;#onState;#checkpoint;#drafts;#context=null;#state='UNAVAILABLE';#generation=0;#controlVersion=0;#dto=null;#credentials=new Map();#anchorServer=0;#anchorLocal=0;#masked=true;#serial=Promise.resolve();#owner;#unconfirmed=false;#activity=false;#timer=null;#setTimer;#clearTimer;#rememberGeneration=0;#deadlineTimer=null;#refreshPromise=null;#needsBootstrap=true;#hidden=false;#playback=false;#serviceWorker;#workerListener;#workerBlocked=false;#bootstrapFlights=new Map();#preparationCancels=new Set();#responses=new WeakMap();
+ #app;#origin;#academy;#fetch;#crypto;#ss;#ls;#locks;#leader;#channel;#clock;#mono;#maskView;#onState;#checkpoint;#drafts;#context=null;#state='UNAVAILABLE';#generation=0;#controlVersion=0;#dto=null;#credentials=new Map();#anchorServer=0;#anchorLocal=0;#masked=true;#serial=Promise.resolve();#owner;#unconfirmed=false;#activity=false;#timer=null;#setTimer;#clearTimer;#rememberGeneration=0;#deadlineTimer=null;#refreshPromise=null;#needsBootstrap=true;#hidden=false;#playback=false;#serviceWorker;#workerListener;#workerBlocked=false;#bootstrapFlights=new Map();#preparationCancels=new Set();#responses=new WeakMap();#signInReadiness=null;
  constructor({app,origin=globalThis.location?.origin,academyOrigin='https://ummabbadacademy.app',fetch=globalThis.fetch?.bind(globalThis),crypto=globalThis.crypto,sessionStorage=globalThis.sessionStorage,localStorage=globalThis.localStorage,locks=globalThis.navigator?.locks,indexedDB=globalThis.indexedDB,leaderStore,BroadcastChannel=globalThis.BroadcastChannel,clock=()=>Date.now(),monotonicClock=()=>globalThis.performance?.now()??Date.now(),onMask=()=>{},onState=()=>{},drafts=null,checkpoint=async()=>{},serviceWorker=globalThis.navigator?.serviceWorker,setTimer=(fn,ms)=>{const id=setTimeout(fn,ms);id.unref?.();return id;},clearTimer=id=>clearTimeout(id)}={}){
   need(['academy','studio','hifz'].includes(app)&&typeof fetch==='function'&&crypto?.subtle,'BROWSER_ADAPTER_REQUIRED');
   for(const value of [origin,academyOrigin]){let u;try{u=new URL(value);}catch{throw new BrowserSessionError('INVALID_BROWSER_ORIGIN');}need(u.protocol==='https:'&&u.origin===value,'INVALID_BROWSER_ORIGIN');}
@@ -192,6 +192,47 @@ export class BrowserSession{
   need(Number.isSafeInteger(jitterMs)&&jitterMs>=0&&jitterMs<=5000,'INVALID_RENEWAL_JITTER');if(this.#timer)this.#clearTimer(this.#timer);if(this.#hidden||!activeWork||!this.#dto||this.#state!=='UNLOCKED')return null;
   const at=Math.min(this.#dto.validationDeadlineMs,this.#dto.idleUntilMs,this.#dto.originalExpiresAtMs)-60000-jitterMs,delay=Math.max(0,at-this.#now());const controlVersion=this.#controlVersion;this.#timer=this.#setTimer(()=>{this.#timer=null;this.refresh().catch(()=>{if(controlVersion===this.#controlVersion)this.#mask('RENEWAL_UNAVAILABLE');});},delay);return at;
  }
+ #startSignInReadiness(operationId){
+  if(!uuid(operationId)||this.#app!=='academy'||!this.#context||this.#state!=='UNLOCKED')return;
+  const context=this.getContext(),apps=['studio','hifz'];
+  const work={operationId,context,state:{studio:'PENDING',hifz:'PENDING'},recipient:{}};
+  for(const app of apps){
+   let finish;
+   const promise=new Promise(resolve=>{finish=resolve;});
+   work.recipient[app]={promise,finish};
+  }
+  this.#signInReadiness=work;
+  void (async()=>{
+   const deadline=this.#mono()+15000;
+   for(let i=0;i<4&&this.#mono()<deadline;i++){
+     if(this.#signInReadiness!==work||!same(context,this.#context,STABLE)||this.#state!=='UNLOCKED')return;
+    const checked=this.getContext();
+    try{
+     const result=await this.#raw('/auth/v2/sign-in/readiness',{operationId,expectedContext:checked},{signal:AbortSignal.timeout(4500)});
+     need(result.operationId===operationId&&result.readiness&&['studio','hifz'].every(app=>['PENDING','APPLIED','REUSED','INELIGIBLE'].includes(result.readiness[app])),'INVALID_BASELINE_READINESS');
+     need(Number.isSafeInteger(result.retryAfterMs)&&result.retryAfterMs>=0&&result.retryAfterMs<=8000,'INVALID_BASELINE_READINESS');
+     work.state=result.readiness;
+     for(const app of apps)if(work.state[app]!=='PENDING')work.recipient[app].finish();
+     if(result.retryAfterMs>0){
+      if(this.#mono()+result.retryAfterMs>=deadline)return;
+      await this.#preparationPause(result.retryAfterMs);
+     }
+    }catch(error){
+     if(['STALE_BROWSER_RESPONSE','PREPARATION_CANCELLED'].includes(error.code)||error.status===401||error.status===403)return;
+    }
+    if(Object.values(work.state).every(value=>value!=='PENDING'))return;
+   }
+  })().finally(()=>{for(const app of apps)work.recipient[app].finish();});
+ }
+ async waitForSignInReadiness(app){
+  need(app==='studio'||app==='hifz','INVALID_BASELINE_RECIPIENT');
+  const work=this.#signInReadiness;
+  if(!work||!same(work.context,this.#context,STABLE))return;
+  await work.recipient[app].promise;
+  need(this.#signInReadiness===work&&same(work.context,this.#context,STABLE),'STALE_BROWSER_RESPONSE');
+  need(work.state[app]!=='INELIGIBLE','PROGRAMME_UNAVAILABLE',{message:'This programme is unavailable for your account.'});
+  need(['APPLIED','REUSED'].includes(work.state[app]),'CHILD_AUTHORITY_PENDING',{message:'This programme is still preparing your sign-in. Try again from Academy.'});
+ }
  async prepareJourney(){const controlVersion=this.#controlVersion;this.#guardWorker();this.#mask('AUTH_JOURNEY');try{await this.#checkpoint();this.#guardWorker();await this.#drafts?.flush();this.#guardWorker();this.#drafts?.lock();return {checkpointed:true};}catch(e){if(controlVersion===this.#controlVersion)this.#mask('DRAFT_CHECKPOINT_FAILED');throw e;}}
  #navigate(url){const u=new URL(url);need(u.origin===this.#academy&&u.protocol==='https:'&&![...u.searchParams.keys()].some(k=>['code','state','verifier','pin','token','jwt'].includes(k.toLowerCase()))&&!u.hash,'UNTRUSTED_AUTH_NAVIGATION');return u.href;}
  async #begin(purpose,{returnTo='/'}={}){
@@ -255,6 +296,7 @@ export class BrowserSession{
    }else this.#accept(current);
    this.#pinRecovery=null;
    this.#broadcast('uaa-cookie-changed-v2',this.getContext());
+   if(status.signInReadiness===true)this.#startSignInReadiness(body.operationId);
    return result;
   }catch(error){
    if(error.code==='STALE_BROWSER_RESPONSE')throw error;
@@ -289,6 +331,7 @@ export class BrowserSession{
    try{
     const dto=await this.#raw('/auth/v2/pin',{...input,...body,pin},{csrf:proof.csrf,signal:AbortSignal.timeout(12000)});
     if(dto.state)this.#accept(dto,{operationId:proof.intent.id});
+    if(dto.signInReadiness===true)this.#startSignInReadiness(body.operationId);
     return dto;
    }catch(error){
     if(!['AUTH_TRANSPORT_UNAVAILABLE','INVALID_AUTH_RESPONSE','AUTH_REDIRECT_REJECTED'].includes(error.code)&&!(error.status>=500))throw error;
@@ -297,7 +340,7 @@ export class BrowserSession{
    }
   });
  }
- async setupPin({pin,confirmation,...input}){need(this.#app==='academy'&&/^\d{4}$/.test(pin)&&pin===confirmation,'PIN_CONFIRMATION_REQUIRED');return this.#coordinate(async()=>{const proof=await this.#for('pin/setup',input),dto=await this.#raw('/auth/v2/pin/setup',{...input,pin,confirmation,tx:proof.tx,attemptId:proof.attemptId,operationId:proof.intent.id,expectedContext:this.getContext()},{csrf:proof.csrf});if(dto.state)this.#accept(dto,{operationId:proof.intent.id});return dto;});}
+ async setupPin({pin,confirmation,...input}){need(this.#app==='academy'&&/^\d{4}$/.test(pin)&&pin===confirmation,'PIN_CONFIRMATION_REQUIRED');return this.#coordinate(async()=>{const proof=await this.#for('pin/setup',input),dto=await this.#raw('/auth/v2/pin/setup',{...input,pin,confirmation,tx:proof.tx,attemptId:proof.attemptId,operationId:proof.intent.id,expectedContext:this.getContext()},{csrf:proof.csrf});if(dto.state)this.#accept(dto,{operationId:proof.intent.id});if(dto.signInReadiness===true)this.#startSignInReadiness(proof.intent.id);return dto;});}
  clearAvailable({reason='LOGOUT',broadcast=true}={}){
   this.#cancelPreparation();
   this.#pinRecovery=null;

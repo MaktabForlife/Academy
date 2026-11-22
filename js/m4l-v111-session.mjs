@@ -7,7 +7,7 @@ export function selectedAcademyV2(doc=globalThis.document,origin=globalThis.loca
 export async function createAcademyClient({factory,origin=globalThis.location?.origin,win=globalThis.window,doc=globalThis.document,sessionOptions={}}={}){
  if(!selectedAcademyV2(doc,origin))throw fail('V2_MODE_NOT_SELECTED');
  const create=factory||(await import('/auth/v2/browser-session.mjs')).createBrowserSession;
- const contexts=new WeakMap(),mutationFacts=new WeakMap(),checkpoints=new Set(),privateRoots=new Map();let session,previous=null,restoring=null,disposed=false,suspended=false;
+ const contexts=new WeakMap(),mutationFacts=new WeakMap(),checkpoints=new Set(),privateRoots=new Map();let session,previous=null,restoring=null,disposed=false,suspended=false,pinChecks=0;
  const dispatch=(name,detail)=>win?.dispatchEvent(new win.CustomEvent(name,{detail}));
  const mask=(masked,detail={})=>{if(masked)for(const root of privateRoots.keys()){root.style.visibility='hidden';root.inert=true;}doc.documentElement.classList.toggle('uaa-v2-private-masked',masked);if(doc.createElement){const notice=()=>{let node=doc.getElementById('uaa-v2-offline-controller');if(detail.reason==='UNVERIFIED_SERVICE_WORKER'){if(!node&&doc.body){node=doc.createElement('p');node.id='uaa-v2-offline-controller';node.setAttribute('role','status');doc.body.prepend(node);}if(node){node.textContent=detail.message;node.hidden=false;}}else if(!masked&&node)node.hidden=true;};if(doc.body)notice();else doc.addEventListener('DOMContentLoaded',notice,{once:true});}dispatch('academy-v2-mask',{masked,...detail});};
  const checkpoint=async()=>{for(const fn of checkpoints)await fn();};
@@ -22,9 +22,30 @@ export async function createAcademyClient({factory,origin=globalThis.location?.o
  const active=()=>doc.visibilityState!=='hidden';
  let clientAPI;const clientRequestAcceptance=async reference=>{if(!reference||Object.keys(reference).sort().join(',')!=='dataset,operationId,scope')throw fail('INVALID_NATIVE_ACCEPTANCE');return clientAPI.request('/api/academy/changes/accept',reference,{headers:{'X-Academy-Workspace':'ADMIN'}});};
  const hide=()=>{suspended=true;session.pagehide();};
- const show=event=>{if(!active()||disposed||!suspended&&!event?.persisted)return;suspended=false;if(!restoring)restoring=session.pageshow().then(()=>dispatch('academy-v2-revalidate',{})).catch(()=>{}).finally(()=>{restoring=null;});};
+ const show=event=>{
+  if(!active()||disposed||restoring||!suspended&&!event?.persisted)return;
+  suspended=false;
+  restoring=session.pageshow().then(()=>{if(active()&&!suspended)dispatch('academy-v2-revalidate',{});}).catch(()=>{}).finally(()=>{
+   restoring=null;
+   if(suspended)show();
+  });
+ };
+ const visibility=()=>{
+  if(pinChecks){
+   if(!active())mask(true,{reason:'PIN_CHECK_HIDDEN'});
+   return;
+  }
+  if(active())show();else hide();
+ };
+ const waitForPinForeground=()=>active()?Promise.resolve():new Promise((resolve,reject)=>{
+  const cleanup=()=>{doc.removeEventListener('visibilitychange',visible);win.removeEventListener('pagehide',leave);};
+  const visible=()=>{if(active()){cleanup();resolve();}};
+  const leave=()=>{cleanup();reject(new DOMException('The Academy sign-in page was left.','AbortError'));};
+  doc.addEventListener('visibilitychange',visible);
+  win.addEventListener('pagehide',leave,{once:true});
+ });
  const listeners=[];const listen=(target,type,fn,options)=>{target?.addEventListener(type,fn,options);listeners.push(()=>target?.removeEventListener(type,fn,options));};
- listen(win,'pagehide',hide);listen(win,'pageshow',show);listen(doc,'visibilitychange',()=>active()?show():hide());if(!active())hide();
+ listen(win,'pagehide',hide);listen(win,'pageshow',show);listen(doc,'visibilitychange',visibility);if(!active())hide();
  for(const [event,kind]of [['keydown','keyboard'],['pointerdown','pointer'],['touchstart','touch'],['wheel','scroll']])listen(doc,event,e=>{if(e.isTrusted&&active()){session.recordActivity({kind});session.scheduleRenewal({activeWork:true});}},{capture:true,passive:true});
  return clientAPI=Object.freeze({
   session,getContext:()=>session.getContext(),getState:()=>session.getState(),getServerNowMs:()=>session.getServerNowMs(),
@@ -41,13 +62,25 @@ export async function createAcademyClient({factory,origin=globalThis.location?.o
   trackResult:remember,resultContext:value=>contexts.get(value)?.context||null,resultProvenance:value=>{const p=contexts.get(value);return p?Object.freeze({context:{...p.context},viewVersion:p.viewVersion}):null;},
   isCurrentResult(value){return currentProof(contexts.get(value));},
   registerPrivateRoot(root){if(!root?.style)throw fail('INVALID_PRIVATE_ROOT');if(!privateRoots.has(root))privateRoots.set(root,{visibility:root.style.visibility||'',inert:root.inert===true});root.style.visibility='hidden';root.inert=true;return ()=>privateRoots.delete(root);},
-  revealResult(value,{root,roots=root?[root]:[]}={}){const proof=contexts.get(value);if(!proof)throw fail('UNVERIFIED_PRIVATE_REPLY');if(!currentProof(proof))throw new DOMException('This reply belongs to an earlier Academy view.','AbortError');const expected=proof.context;for(const target of roots)if(!privateRoots.has(target))throw fail('UNREGISTERED_PRIVATE_ROOT');session.reveal(expected);for(const target of roots){const saved=privateRoots.get(target);target.style.visibility=saved.visibility;target.inert=saved.inert;}},
+  revealResult(value,{root,roots=root?[root]:[]}={}){const proof=contexts.get(value);if(!proof)throw fail('UNVERIFIED_PRIVATE_REPLY');if(!active()||!currentProof(proof))throw new DOMException('This reply belongs to an earlier Academy view.','AbortError');const expected=proof.context;for(const target of roots)if(!privateRoots.has(target))throw fail('UNREGISTERED_PRIVATE_ROOT');session.reveal(expected);for(const target of roots){const saved=privateRoots.get(target);target.style.visibility=saved.visibility;target.inert=saved.inert;}},
+  async completeSignIn(load){
+   if(session.getContext())return load();
+   pinChecks++;
+   try{
+    const result=await load();
+    await waitForPinForeground();
+    if(!currentProof(contexts.get(result)))throw new DOMException('This sign-in view is no longer current.','AbortError');
+    return result;
+   }finally{
+    if(--pinChecks===0&&!active()&&!suspended)hide();
+   }
+  },
   async submitPin({uniqueid,loginId=uniqueid,pin,setup=false,pinConfirmation,remember=false}={}){const hintGeneration=session.getHintGeneration();const result=setup?await session.setupPin({loginId,pin,confirmation:pinConfirmation}):await session.submitPin({loginId,pin});if(result.state!=='UNLOCKED')throw fail('PIN_REQUIRED','Complete Academy sign-in to continue.');if(remember)try{session.rememberSelection({selection:{uniqueId:loginId,displayName:loginId},optIn:true,serverNowMs:result.serverNowMs,hintGeneration});}catch{/* Optional hint storage or a concurrent Forget must not change successful PIN installation. */}return result;},
   checkPinResult:()=>session.checkPinResult(),restartPinCheck:()=>session.restartPinCheck(),
   getRememberedSelection:()=>session.getRememberedSelection(),forgetSelection:()=>session.forgetSelection(),
   logout:()=>session.logout(),switchAccount:input=>session.switchAccount(input),prepareJourney:()=>session.prepareJourney(),
   registerCheckpoint(fn){if(typeof fn!=='function')throw fail('INVALID_CHECKPOINT');checkpoints.add(fn);return ()=>checkpoints.delete(fn);},
-  async navigate(destination,{newTab=false}={}){const url=new URL(destination,origin);if(!['https://ummabbadacademy.app','https://worshipuponbaseera.ummabbadacademy.app','https://mahadarwa-hifz.ummabbadacademy.app'].includes(url.origin)||url.username||url.password)throw fail('INVALID_APP_DESTINATION');let child;if(newTab){child=win.open('about:blank','_blank');if(!child)throw fail('POPUP_BLOCKED','Allow the Hifz window to open, then try again.');child.opener=null;}try{await session.prepareJourney();if(child){child.location.replace(url.href);return child;}win.location.assign(url.href);return null;}catch(error){child?.close();throw error;}},
+  async navigate(destination,{newTab=false}={}){const url=new URL(destination,origin);if(!['https://ummabbadacademy.app','https://worshipuponbaseera.ummabbadacademy.app','https://mahadarwa-hifz.ummabbadacademy.app'].includes(url.origin)||url.username||url.password)throw fail('INVALID_APP_DESTINATION');let child;if(newTab){child=win.open('about:blank','_blank');if(!child)throw fail('POPUP_BLOCKED','Allow the Hifz window to open, then try again.');child.opener=null;}try{const recipient=url.origin==='https://worshipuponbaseera.ummabbadacademy.app'||url.pathname==='/studio/'?'studio':url.origin==='https://mahadarwa-hifz.ummabbadacademy.app'?'hifz':null;if(recipient)await session.waitForSignInReadiness?.(recipient);await session.prepareJourney();if(child){child.location.replace(url.href);return child;}win.location.assign(url.href);return null;}catch(error){child?.close();throw error;}},
   dispose(){disposed=true;listeners.forEach(fn=>fn());session.dispose();}
  });
 }

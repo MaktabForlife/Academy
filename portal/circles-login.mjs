@@ -110,7 +110,7 @@ async function finishSignIn({checkOnly=false}={}){
  if(checkingPin)return;
  const v2=Boolean(window.M4L_ACADEMY_AUTH?.selected);
  const opening=++attempt,loginId=form.elements.uniqueid.value.trim(),remember=form.elements.rememberId.checked;
- const credential=checkOnly?null:pins.take();
+ let credential=checkOnly?null:pins.take();
  checkingPin=true;
  recheckPin.hidden=true;
  restartPin.hidden=true;
@@ -122,8 +122,14 @@ async function finishSignIn({checkOnly=false}={}){
  const slow=v2&&setTimeout(()=>{if(current())message.textContent='Connection is slow. Still checking…';},5000);
  let pending=false;
  try{
-  config||=await api('/api/config');
-  const boot=await signInFromCircles(api,credential&&{uniqueid:loginId,pin:credential.pin,setup:form.dataset.setup==='1',pinConfirmation:credential.pinConfirmation,remember},{current,onExchange:()=>changed(null),bootstrap:true,checkOnly});
+  const load=async()=>{
+   try{
+    config||=await api('/api/config');
+    return await signInFromCircles(api,credential&&{uniqueid:loginId,pin:credential.pin,setup:form.dataset.setup==='1',pinConfirmation:credential.pinConfirmation,remember},{current,onExchange:()=>changed(null),bootstrap:true,checkOnly});
+   }finally{credential=null;}
+  };
+  const auth=window.M4L_ACADEMY_AUTH;
+  const boot=await (v2&&auth.completeSignIn?auth.completeSignIn(load):load());
   if(!current())return;
   const me=boot.account;
   if(!v2){if(remember)rememberVerified(storage(),config.academyOrigin,{uniqueid:loginId,displayName:me.displayName});else forgetRemembered(storage(),config.academyOrigin,loginId);}
@@ -195,6 +201,15 @@ document.addEventListener('click',event=>{
  if(event.target.closest('[data-circles-home]')){event.preventDefault();event.stopImmediatePropagation();setPublicView(false);window.scrollTo({top:0,behavior:'smooth'});return;}
  const signout=event.target.closest('[data-circles-sign-out]');if(signout){event.preventDefault();event.stopImmediatePropagation();void signOut(signout);return;}
  const programme=event.target.closest('[data-programme-key]');if(programme&&identity.account){event.preventDefault();event.stopImmediatePropagation();if(programme.dataset.programmeKey==='hifz'){openAcademy('hifz');return;}try{openAcademy(null,dashboardProgrammeChoice(programme.dataset.programmeKey,dashboard.mode,dashboard.data));}catch(error){showHomeMessage(error.message);}return;}
+ const studioLink=event.target.closest('#circles-dashboard a[href]');
+ if(studioLink&&identity.account&&window.M4L_ACADEMY_AUTH?.selected){
+  const destination=new URL(studioLink.href);
+  if(destination.origin===location.origin&&destination.pathname==='/studio/'){
+   event.preventDefault();event.stopImmediatePropagation();
+   void window.M4L_ACADEMY_AUTH.navigate(destination.href,{newTab:studioLink.target==='_blank'}).catch(error=>showHomeMessage(error.message));
+   return;
+  }
+ }
  const target=event.target.closest('[data-access-login],[data-circles-login],[data-action="visitor-access"],[data-action="dashboard"],[data-action="academy"],[data-action="collection"],[data-action="course"]');if(!target)return;
  if(target.dataset.action==='visitor-access'&&!identity.account)return;
  event.preventDefault();event.stopImmediatePropagation();

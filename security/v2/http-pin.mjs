@@ -115,6 +115,7 @@ export async function pinStatus(runtime,request,body){
   if(f.sid!==receipt.sid||f.sub!==row.sub||f.s_exp!==receipt.s_exp||f.sv<receipt.sv||f.ue!==receipt.ue)
    return response('SUPERSEDED');
   const context=selector(JSON.parse(f.binding_json),runtime.app);
+  const signInReadiness=runtime.settings.raw.signInBaselineRefresh===true&&JSON.parse(row.payload_json).mode==='signin';
   // The request carries the historical selector to authenticate the attempt.
   // Check the actual installed pair independently of that selector.
   const headers=new Headers();
@@ -124,11 +125,11 @@ export async function pinStatus(runtime,request,body){
    requireExpected(context,cap.context);
   }catch(error){
    if(error.status===401&&f.state==='UNLOCKED'&&runtime.clock()<Math.min(f.idle_until,f.s_exp))
-    return response('REFRESH_CURRENT',{context});
+    return response('REFRESH_CURRENT',{context,signInReadiness});
    if(error.status>=500)throw error;
    return response('COMMITTED_UNCONFIRMED');
   }
-  return response('INSTALLED_CURRENT',{context});
+  return response('INSTALLED_CURRENT',{context,signInReadiness});
  }
  if(result?.status==='WRONG_PIN'||result?.status==='PIN_PAUSED')
   return response('REJECTED',{code:result.status,pausedUntilMs:(result.pausedUntil||0)*1000});
@@ -196,7 +197,7 @@ export async function submitPIN(runtime,request,body,{setup=false}={}){
  if(payload.mode==='unlock'){requireThat(!setup,'FRESH_PARENT_REQUIRED',409);committed=await unlockAcademy(runtime,{transaction,attempt,credential,current});}
  else committed=await beginRootFamily(runtime,{transaction,attempt,credential,current});
  const state=await runtime.stateDTO(committed.family);
- return runtime.cookieResponse(committed.family,committed.refresh,{...state,operationId:body.operationId,outcome:'COMMITTED',cachePublication:committed.cachePublication||'READY'});
+ return runtime.cookieResponse(committed.family,committed.refresh,{...state,operationId:body.operationId,outcome:'COMMITTED',cachePublication:committed.cachePublication||'READY',...(payload.mode==='signin'&&runtime.settings.raw.signInBaselineRefresh===true?{signInReadiness:true}:{})});
 }
 
 async function unlockAcademy(runtime,{transaction,attempt,credential,current}){

@@ -100,6 +100,8 @@ export async function beginRootFamily(runtime,{transaction,attempt,credential,cu
  before.push(store.stmt("INSERT INTO jwt_v2_parents VALUES(?,?,?,?,?,?,?,?,?,'UNLOCKED')",sid,binding.sub,bsid,bv,binding.ce,binding.ae,signedAt,binding.s_exp,signedAt));
  before.push(store.stmt('INSERT INTO jwt_v2_browsers VALUES(?,?,?,?,0) ON CONFLICT(bsid) DO UPDATE SET bv=excluded.bv,sub=excluded.sub,psid=excluded.psid',bsid,bv,binding.sub,sid));
  after.unshift(store.stmt("UPDATE jwt_v2_http_transactions SET status='COMMITTED',result_json=? WHERE tx=?",canonical({status:'COMMITTED',attemptId:attempt.attempt_id,sid,sv:binding.sv,ue:binding.ue,operationId:transaction.operation_id,s_exp:binding.s_exp}),transaction.tx));
+ const {signInBaselinePlan}=await import('./signin-baseline.mjs');
+ after.unshift(...signInBaselinePlan(runtime,binding,transaction.operation_id,signedAt));
  await store.createFamily({binding,projection,capture,fingerprint:await fingerprint(refresh,runtime.config),now:signedAt,deadline,idleUntil,policyMinutes:projection.inactivityMinutes,vectorGuards:capture.vectorGuards},{before,after});
  let priorPending=false;if(current)try{priorPending=!await runtime.publishPending(transaction.operation_id);}catch{priorPending=true;}const publication=await runtime.publishWinningFamily(sid,{initial:true});if(priorPending)publication.cachePublication='PENDING';return {family:await store.family(sid),refresh,...publication};
 }

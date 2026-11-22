@@ -91,3 +91,28 @@ test('shared Academy keys use an exact production registry and dedicated signer'
  f.env.UAA_V2_SHARED_ACADEMY_PRIVATE_JWK=JSON.stringify(f.handoff.private);
  await assert.rejects(loadRuntimeConfiguration(f.env,'academy'),/SIGNING_KEY_PAIR_CONFLICT/);
 });
+
+test('Stage 2 can extend existing production service keys with a separately scoped baseline ring',async()=>{
+ const {env,raw,service}=await fixture();
+ const shared=await ec();
+ Object.assign(raw,{snapshotSchema:4,sharedAcademySessions:true,signInBaselineRefresh:true,signInBaselineGeneration:'v11112'});
+ env.UAA_V2_CONFIG=JSON.stringify(raw);
+ env.UAA_V2_SHARED_ACADEMY_KEYS_JSON=JSON.stringify({issuer:ORIGINS.academy,env:'production',
+  purpose:'academy-shared-access',revision:1,currentKid:'shared',keys:[{kid:'shared',jwk:shared.public}]});
+ env.UAA_V2_SHARED_ACADEMY_PRIVATE_JWK=JSON.stringify(shared.private);
+ await assert.rejects(loadRuntimeConfiguration(env,'academy'),/BASELINE_SERVICE_KEYS_REQUIRED/);
+ const path='/internal/auth/v2/account-baseline';
+ const keys=['studio','hifz'].flatMap(child=>[
+  {kid:'v11112-academy-'+child,sourceApp:'academy',targetApp:child,key:secret(),paths:[path]},
+  {kid:'v11112-'+child+'-academy',sourceApp:child,targetApp:'academy',key:secret(),paths:[path]}
+ ]);
+ env.UAA_V2_BASELINE_SERVICE_KEYS_JSON=JSON.stringify({keys});
+ const loaded=await loadRuntimeConfiguration(env,'academy');
+ assert.equal(loaded.serviceKeys.size,5);
+ assert.deepEqual(loaded.serviceKeys.get('v11112-academy-hifz').paths,[path]);
+ assert.deepEqual(loaded.serviceKeys.get('studio-source').paths,['/internal/auth/v2/transactions','/internal/auth/v2/redeem']);
+ env.UAA_V2_BASELINE_SERVICE_KEYS_JSON=JSON.stringify({keys:[{...keys[0],paths:['/internal/auth/v2/events']}]});
+ await assert.rejects(loadRuntimeConfiguration(env,'academy'),/BASELINE_SERVICE_KEYS_INVALID/);
+ env.UAA_V2_BASELINE_SERVICE_KEYS_JSON=JSON.stringify({keys:[...keys.slice(0,-1),{...keys.at(-1),key:service}]});
+ await assert.rejects(loadRuntimeConfiguration(env,'academy'),/KEY_PURPOSE_SEPARATION_REQUIRED/);
+});

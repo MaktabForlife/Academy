@@ -89,6 +89,7 @@ export async function handleAuthHTTP(runtime,request,ctx){
  if(path==='/auth/v2/admission/start'&&runtime.app==='academy'){const {continueAcademy}=await import('./http-shells.mjs');return continueAcademy(runtime,request,body);}
  if(path==='/auth/v2/refresh')return rotateFamily(runtime,request,body);
  if(path==='/auth/v2/status')return status(runtime,request,body);
+ if(path==='/auth/v2/sign-in/readiness'){const {signInReadiness}=await import('./signin-baseline.mjs');return signInReadiness(runtime,request,body);}
  if(path==='/auth/v2/pin/status')return pinStatus(runtime,request,body);
  if(path==='/auth/v2/pin/restart')return restartPin(runtime,request,body);
  if(path==='/auth/v2/pin')return submitPIN(runtime,request,body);
