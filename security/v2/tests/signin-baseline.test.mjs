@@ -288,7 +288,7 @@ test('a gap beyond the sign-in replay budget fails closed and recovers through s
    const boot=await f.post('academy','/auth/v2/bootstrap',{purpose:'logout',expectedContext:account.context});
    const logout={operationId:boot.data.intent.id,expectedContext:account.context};
    let end=await f.post('academy','/auth/v2/logout',logout,boot.data);
-   if(end.data.code==='LOGOUT_PUBLICATION_PENDING'){
+   for(let attempt=1;attempt<8&&end.data.code==='LOGOUT_PUBLICATION_PENDING';attempt++){
     assert.equal(end.response.status,503);
     assert.equal(end.response.headers.getSetCookie().length,0);
     end=await f.post('academy','/auth/v2/logout',logout,boot.data);
@@ -309,6 +309,89 @@ test('a gap beyond the sign-in replay budget fails closed and recovers through s
    const session=await open(f,app);
    assert.equal(session.context.psid,fresh.context.psid);
   }
+ }finally{f.close();}
+});
+
+test('a large Academy logout publishes the initiating holder first and stays unconfirmed',async()=>{
+ const f=await stage2Fixture();
+ try {
+  enableStage2(f);
+  const sessions=new Map();
+  for(let i=0;i<16;i++){
+   f.advance(6);
+   f.jar.hosts.clear();
+   f.jar.shared=null;
+   const account=await signIn(f);
+   sessions.set(account.context.sid,{account,hosts:new Map(f.jar.hosts),shared:f.jar.shared});
+  }
+  assert.equal(sessions.size,16);
+  const sid=[...sessions.keys()].sort().at(-1);
+  const {account,hosts,shared}=sessions.get(sid);
+  f.jar.hosts=hosts;
+  f.jar.shared=shared;
+  const renew=await f.post('academy','/auth/v2/bootstrap',{purpose:'refresh',expectedContext:account.context});
+  assert.equal(renew.response.status,200);
+  const originalCookies=f.jar.header(ORIGINS.academy);
+  const boot=await f.post('academy','/auth/v2/bootstrap',{purpose:'logout',expectedContext:account.context});
+  const body={operationId:boot.data.intent.id,expectedContext:account.context};
+  const first=await f.post('academy','/auth/v2/logout',body,boot.data);
+  assert.equal(first.response.status,503);
+  assert.equal(first.data.code,'LOGOUT_PUBLICATION_PENDING');
+  assert.equal(first.response.headers.getSetCookie().length,0);
+  const db=f.databases.academy;
+  const rows=db.prepare('SELECT sid,published_cr FROM jwt_v2_publications WHERE work_id=? ORDER BY sid').all(body.operationId);
+  assert.ok(rows.length>=16);
+  assert.ok(rows.find(row=>row.sid===sid)?.published_cr);
+  assert.equal(rows.filter(row=>row.published_cr!==null).length,2);
+  assert.equal(db.prepare('SELECT state FROM jwt_v2_worksets WHERE work_id=?').get(body.operationId).state,'PENDING');
+  await assert.rejects(f.runtimes.academy.authorise(new Request(ORIGINS.academy+protectedPaths.academy,
+   {headers:{Cookie:originalCookies}})));
+  const refresh=await f.dispatch(browserPost('academy','/auth/v2/refresh',
+   {operationId:renew.data.intent.id,expectedContext:account.context,qualifyingActivity:false},
+   {csrf:renew.data.csrf,cookies:originalCookies}));
+  assert.equal(refresh.status,401);
+  assert.equal(refresh.headers.getSetCookie().length,0);
+  const outbox=db.prepare("SELECT state,attempts FROM jwt_v2_outbox WHERE json_extract(event_json,'$.operationId')=?").all(body.operationId);
+  assert.equal(outbox.length,2);
+  assert.ok(outbox.every(row=>row.state==='PENDING'&&row.attempts===0));
+ }finally{f.close();}
+});
+
+test('delayed or invalid signed readiness replies never settle a child without a verified retry',async()=>{
+ const f=await stage2Fixture();
+ try {
+  enableStage2(f);
+  const login=await signIn(f);
+  const transports={...f.envs.academy.UAA_V2_PEERS};
+  let first=true;
+  const results={};
+  for(const app of apps){
+   f.envs.academy.UAA_V2_PEERS[app]={async fetch(request){
+    const reply=await transports[app].fetch(request);
+    if(!first||new URL(request.url).pathname!==peerPath)return reply;
+    results[app]=(await reply.clone().json()).status;
+    assert.equal(results[app],'APPLIED');
+    if(app==='studio'){
+     await new Promise((resolve,reject)=>{
+      if(request.signal.aborted){ reject(new DOMException('deadline','AbortError'));return; }
+      const timer=setTimeout(resolve,2400);
+      request.signal.addEventListener('abort',()=>{clearTimeout(timer);reject(new DOMException('deadline','AbortError'));},{once:true});
+     });
+     return reply;
+    }
+    const headers=new Headers(reply.headers);
+    headers.delete('X-UAA-Service-Signature');
+    return new Response(reply.body,{status:reply.status,headers});
+   }};
+  }
+  assert.deepEqual(await afterSignIn(f,login),{studio:'PENDING',hifz:'PENDING'});
+  assert.deepEqual(results,{studio:'APPLIED',hifz:'APPLIED'});
+  for(const app of apps){
+   const stored=f.databases[app].prepare('SELECT count(*) AS n FROM jwt_v2_signin_account_proofs WHERE sub=?').get(f.sub);
+   assert.equal(stored.n,1);
+  }
+  first=false;
+  assert.deepEqual(await afterSignIn(f,login),{studio:'APPLIED',hifz:'APPLIED'});
  }finally{f.close();}
 });
 

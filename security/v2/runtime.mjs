@@ -159,9 +159,12 @@ export class AppRuntime {
    ...(this.app==='academy'?[this.store.stmt("UPDATE jwt_v2_parents SET state=? WHERE psid=? AND state IN('UNLOCKED','LOCKED')",state,family.psid)]:[]),clear]);
   await this.publishFamily(family.sid);return this.store.family(family.sid);
  }
- async publishPending(workId,{limit=-1,logoutTarget}={}){
+ async publishPending(workId,{limit=-1,logoutTarget,firstSid=null}={}){
   if(logoutTarget!==undefined)requireThat(isVoluntaryAccountCutoff(logoutTarget),'INVALID_LOGOUT_TARGET',409);
-  const rows=await this.store.all('SELECT sid FROM jwt_v2_publications WHERE work_id=? AND published_cr IS NULL AND covered_by_expiry=0 ORDER BY sid LIMIT ?',workId,limit);
+  const pending='SELECT sid FROM jwt_v2_publications WHERE work_id=? AND published_cr IS NULL AND covered_by_expiry=0';
+  const rows=firstSid===null
+   ?await this.store.all(pending+' ORDER BY sid LIMIT ?',workId,limit)
+   :await this.store.all(pending+' ORDER BY (sid IS ?) DESC,sid LIMIT ?',workId,firstSid,limit);
   for(const row of rows){
    const projection=await this.publishFamily(row.sid);
    if(logoutTarget)await markLogoutSessionCovered(this.store,{workId,sid:row.sid,target:logoutTarget,projection,now:this.clock()});

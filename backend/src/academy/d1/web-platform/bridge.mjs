@@ -117,7 +117,7 @@ async function identity(db,env,input){
  return {delivery,signature:signed.headers['X-Maktab-Signature']};
 }
 export async function recoverWebsite(env,{fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch,limit=20}={}){
- if(!enabled(env))return;if(env.UAA_V2_ENABLED==='1'){const [{runtimeFor},{recoverStudioBusiness}]=await Promise.all([import('../../../../../security/v2/runtime.mjs'),import('../../v111/studio-business-delivery.mjs')]);const runtime=await runtimeFor(env,{app:'academy'});await resumeCourseStudio(env,{runtime});return recoverStudioBusiness(runtime,{limit:3});}const db=dbFor(env),origin=websiteServerOrigin(env);
+ if(!enabled(env))return;if(env.UAA_V2_ENABLED==='1'){const [{runtimeFor},{recoverStudioBusiness}]=await Promise.all([import('../../../../../security/v2/runtime.mjs'),import('../../v111/studio-business-delivery.mjs')]);const runtime=await runtimeFor(env,{app:'academy'});await resumeCourseStudio(env,{runtime});return recoverStudioBusiness(runtime,{limit:Math.min(3,limit)});}const db=dbFor(env),origin=websiteServerOrigin(env);
  if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)return;
  await resumeCourseStudio(env,{fetcher});
  await pumpAccess(db);

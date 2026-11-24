@@ -1,3 +1,4 @@
+import {armLogoutDispatch,watchAcceptedLogout} from './logout-dispatch.mjs';
 import {logoutPublicationLimit} from './runtime-service.mjs';
 import {canonical,requireThat,uuid} from './codec.mjs';
 import {verifyBootstrap,browserBody} from './browser-security.mjs';
@@ -54,11 +55,14 @@ async function exit(runtime,request,body,kind){
   (f.state!=='REVOKED'||academyLogout&&intent.sid===f.sid&&intent.state==='CANCELLED'&&intent.superseding_operation===body.operationId),'SESSION_ENDED',401);
  let outcome,canonicalAccepted=false,globalConfirmed=false;
  if(academyLogout){
-  const result=await runtime.store.acceptCutoff({sub:f.sub,ce:f.ce,ae:f.ae,operationId:body.operationId,kind:'VOLUNTARY_LOGOUT',now:runtime.clock()});
+  const dispatch=await armLogoutDispatch(runtime,body.operationId);
+  const result=await runtime.store.acceptCutoff({sub:f.sub,ce:f.ce,ae:f.ae,operationId:body.operationId,kind:'VOLUNTARY_LOGOUT',now:runtime.clock(),dispatch});
   requireThat(['ACCEPTED','ALREADY_COVERED'].includes(result.status),'LOGOUT_RECONCILIATION_REQUIRED',503);
-  // The exact original holder and cancelled intent can continue this work
-  // after the cutoff commits. Only a fully published workset clears cookies.
-  requireThat(await runtime.publishPending(result.receipt,{limit:logoutPublicationLimit,...(result.cutoff?.reason==='VOLUNTARY_LOGOUT'?{logoutTarget:result.cutoff}:{})}),'LOGOUT_PUBLICATION_PENDING',503);
+  await watchAcceptedLogout(runtime,result.receipt,body.operationId);
+  // Prioritise the verified holder within this workset. Retained sessions
+  // still need coverage before the response can clear the original cookies.
+  const logoutTarget=result.cutoff?.reason==='VOLUNTARY_LOGOUT'?result.cutoff:undefined;
+  requireThat(await runtime.publishPending(result.receipt,{limit:logoutPublicationLimit,firstSid:f.sid,logoutTarget}),'LOGOUT_PUBLICATION_PENDING',503);
   outcome='ACCEPTED_PENDING';canonicalAccepted=true;
  }else if(kind==='logout'){
   const {runtimeServices}=await import('./runtime-service.mjs'),services=await runtimeServices(runtime),result=await services.queueReport({binding:JSON.parse(f.binding_json),kind:'logout',operationId:body.operationId,now:runtime.clock()});outcome=result?.outcome||'GLOBAL_UNCONFIRMED';canonicalAccepted=result?.canonicalAccepted===true;globalConfirmed=result?.globalConfirmed===true;

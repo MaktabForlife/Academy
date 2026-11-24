@@ -126,7 +126,7 @@ export class PrimaryStore {
   if(!issued||issued.state!=='COMMITTED'||issued.kind!==kind||issued.binding_json!==h.binding_json||issued.generation!==h.generation)return {incidentEligible:false};
   return {incidentEligible:true,sub:binding.sub,ce:binding.ce,ae:binding.ae,sid:h.sid};
  }
- async acceptCutoff({sub,ce,ae,operationId,kind,now,offlineUpdateRef}){
+ async acceptCutoff({sub,ce,ae,operationId,kind,now,offlineUpdateRef,dispatch}){
   requireThat(this.app==='academy'&&safeInt(ce,1)&&safeInt(ae,1),'WRONG_CANONICAL_OWNER',403);
   requireThat(['VOLUNTARY_LOGOUT','VERIFIED_REFRESH_REUSE','SUSPICIOUS_ACTIVITY','CONFIRMED_KEY_COMPROMISE','ACCOUNT_DISABLED','OFFLINE_UPDATE'].includes(kind),'INVALID_CUTOFF',400);
   const offline=kind==='OFFLINE_UPDATE';
@@ -157,7 +157,11 @@ export class PrimaryStore {
    streamGuards.push(sg);streamClears.push(sc);
    streamUpdates.push(this.stmt('UPDATE jwt_v2_sender_streams SET next_sequence=next_sequence+1 WHERE target_app=? AND stream=?',targetApp,stream.stream));
   }
-  const [g,clear]=this.guard('SELECT 1 FROM jwt_v2_accounts WHERE sub=? AND ce=? AND ae=?',[sub,ce,ae]);
+  const authority='SELECT 1 FROM jwt_v2_accounts WHERE sub=? AND ce=? AND ae=?';
+  const dispatchFence=" AND unixepoch('now')<? AND EXISTS(SELECT 1 FROM (SELECT * FROM jwt_v2_update_boundaries ORDER BY generation DESC LIMIT 1) b WHERE b.generation=? AND b.release_id=? AND b.namespace=? AND b.status='VERIFIED')";
+  const [g,clear]=dispatch
+   ?this.guard(authority+dispatchFence,[sub,ce,ae,dispatch.expiresAt,dispatch.generation,dispatch.releaseId,dispatch.namespace])
+   :this.guard(authority,[sub,ce,ae]);
   await this.batch([g,...streamGuards,...streamUpdates,this.stmt('UPDATE jwt_v2_accounts SET ae=ae+1,revision=revision+1 WHERE sub=?',sub),
    this.stmt('INSERT INTO jwt_v2_cutoffs VALUES(?,?,?,?,?)',sub,ce,ae,operationId,canonical(cutoff)),
    this.stmt('INSERT INTO jwt_v2_operations VALUES(?,?,?,?,?,?)',operationId,sub,kind,requestDigest,canonical(result),now),

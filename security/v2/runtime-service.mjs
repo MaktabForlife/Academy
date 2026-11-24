@@ -1,3 +1,4 @@
+import {armLogoutDispatch,watchAcceptedLogout} from './logout-dispatch.mjs';
 import {planSnapshotAdmission} from './snapshot-source-admission.mjs';
 import {steppedBuildProtocol} from './snapshot.mjs';
 import {buildPending,captureSourceHistory,sourceBuildStage} from './source-snapshot-progress.mjs';
@@ -149,7 +150,9 @@ class RuntimeServices{
   // A terminal SID/parent is not an incident-evidence veto. The child attests
   // its immutable owning evidence; only the canonical joint pair can advance.
   if(!old){try{await this.store.stmt('INSERT INTO jwt_v2_service_reports VALUES(?,?,?,NULL)',body.operationId,hash,canonical(body)).run();}catch(e){const raced=await this.store.first('SELECT request_digest FROM jwt_v2_service_reports WHERE operation_id=?',body.operationId);requireThat(raced?.request_digest===hash,'REPORT_OPERATION_CONFLICT',409);}}
-  const accepted=await this.store.acceptCutoff({sub:body.sub,ce:body.ce,ae:body.ae,operationId:body.operationId,kind:body.kind,now:this.runtime.clock()}),result={schema:2,operationId:body.operationId,status:accepted.status,cutoff:accepted.cutoff,receipt:accepted.receipt??null};
+  const dispatch=kind==='logout'?await armLogoutDispatch(this.runtime,body.operationId):undefined;
+  const accepted=await this.store.acceptCutoff({sub:body.sub,ce:body.ce,ae:body.ae,operationId:body.operationId,kind:body.kind,now:this.runtime.clock(),dispatch}),result={schema:2,operationId:body.operationId,status:accepted.status,cutoff:accepted.cutoff,receipt:accepted.receipt??null};
+  if(kind==='logout'&&accepted.receipt)await watchAcceptedLogout(this.runtime,accepted.receipt,body.operationId);
   const [g,c]=this.store.guard('SELECT 1 FROM jwt_v2_service_reports WHERE operation_id=? AND request_digest=? AND result_json IS NULL',[body.operationId,hash]);
   const nowKnown=await this.store.first('SELECT result_json FROM jwt_v2_service_reports WHERE operation_id=?',body.operationId);
   if(nowKnown.result_json){requireThat(nowKnown.result_json===canonical(result),'REPORT_RECEIPT_CONFLICT',409);return strictJSON(nowKnown.result_json);}

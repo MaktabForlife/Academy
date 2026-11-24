@@ -80,7 +80,15 @@ export async function createAcademyClient({factory,origin=globalThis.location?.o
   getRememberedSelection:()=>session.getRememberedSelection(),forgetSelection:()=>session.forgetSelection(),
   logout:()=>session.logout(),switchAccount:input=>session.switchAccount(input),prepareJourney:()=>session.prepareJourney(),
   registerCheckpoint(fn){if(typeof fn!=='function')throw fail('INVALID_CHECKPOINT');checkpoints.add(fn);return ()=>checkpoints.delete(fn);},
-  async navigate(destination,{newTab=false}={}){const url=new URL(destination,origin);if(!['https://ummabbadacademy.app','https://worshipuponbaseera.ummabbadacademy.app','https://mahadarwa-hifz.ummabbadacademy.app'].includes(url.origin)||url.username||url.password)throw fail('INVALID_APP_DESTINATION');let child;if(newTab){child=win.open('about:blank','_blank');if(!child)throw fail('POPUP_BLOCKED','Allow the Hifz window to open, then try again.');child.opener=null;}try{const recipient=url.origin==='https://worshipuponbaseera.ummabbadacademy.app'||url.pathname==='/studio/'?'studio':url.origin==='https://mahadarwa-hifz.ummabbadacademy.app'?'hifz':null;if(recipient)await session.waitForSignInReadiness?.(recipient);await session.prepareJourney();if(child){child.location.replace(url.href);return child;}win.location.assign(url.href);return null;}catch(error){child?.close();throw error;}},
+  async navigate(destination,{newTab=false}={}){const url=new URL(destination,origin);if(!['https://ummabbadacademy.app','https://worshipuponbaseera.ummabbadacademy.app','https://mahadarwa-hifz.ummabbadacademy.app'].includes(url.origin)||url.username||url.password)throw fail('INVALID_APP_DESTINATION');let child;if(newTab){child=win.open('about:blank','_blank');if(!child)throw fail('POPUP_BLOCKED','Allow the Hifz window to open, then try again.');child.opener=null;}try{const recipient=url.origin==='https://worshipuponbaseera.ummabbadacademy.app'||url.pathname==='/studio/'?'studio':url.origin==='https://mahadarwa-hifz.ummabbadacademy.app'?'hifz':null;if(recipient)await session.waitForSignInReadiness?.(recipient);await session.prepareJourney();if(child){
+   try{child.location.replace(url.href);return child;}
+   finally{
+    // New-tab navigation can mask the parent without a visibility change.
+    // Use the existing checked restore path to reveal its private view.
+    suspended=true;
+    show();
+   }
+  }win.location.assign(url.href);return null;}catch(error){child?.close();throw error;}},
   dispose(){disposed=true;listeners.forEach(fn=>fn());session.dispose();}
  });
 }

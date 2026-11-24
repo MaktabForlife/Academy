@@ -189,7 +189,17 @@ function openAcademy(navigationKey,destination){try{handoff?.close();const accou
  if(!accountId||identity.account?.accountId!==accountId||identity.generation!==generation||dashboard.mode!==mode||!dashboard.data||!Number.isFinite(dashboard.data.checkedAt)||Date.now()<dashboard.data.checkedAt||Date.now()-dashboard.data.checkedAt>=43200_000)return false;
  setPublicView(false);window.focus();return true;
 }});}catch(error){showHomeMessage(error.message);}}
-async function signOut(button){button.disabled=true;try{await api('/auth/logout',{body:{}});changed(null);showHomeMessage('You are signed out.');}catch(error){showHomeMessage(error.message);}finally{button.disabled=false;}}
+async function signOut(button){
+ button.disabled=true;
+ try{
+  const result=await api('/auth/logout',{body:{}});
+  changed(null);
+  if(result?.outcome==='ACCEPTED_PENDING'||result?.outcome==='GLOBAL_UNCONFIRMED')
+   showHomeMessage('This tab is signed out. Sign-out across Academy, Studio and Hifz has not been confirmed.');
+  else showHomeMessage('You are signed out.');
+ }catch(error){showHomeMessage(error.message);}
+ finally{button.disabled=false;}
+}
 // Capture before prototype handlers; the signed-in blocks contain real links.
 document.addEventListener('click',event=>{
  if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;

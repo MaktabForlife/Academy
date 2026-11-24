@@ -25,10 +25,11 @@
       "compatibility_date": "2026-10-23",
       "triggers": {
         "crons": [
-          "0,15,30,45 5-6 * * MON",
-          "*/15 * * * *",
           "* * * * *",
-          "7 * * * *"
+          "5 */6 * * *",
+          "10 */6 * * *",
+          "15 */6 * * *",
+          "20 */6 * * *"
         ]
       },
       "d1_databases": [
@@ -74,6 +75,10 @@
       "durable_objects": {
         "bindings": [
           {
+            "name": "UAA_LOGOUT_DISPATCH",
+            "class_name": "AcademyLogoutDispatcher"
+          },
+          {
             "name": "PROGRAM_TIMETABLE_COORDINATOR",
             "class_name": "ProgramTimetableCoordinator"
           },
@@ -85,6 +90,7 @@
         ]
       },
       "vars": {
+        "UAA_V111_ROUTINE_RECOVERY": "1",
         "ACADEMY_ACCEPTED_SETUP": "1",
         "ACADEMY_NOTE_RETENTION": "1",
         "ACADEMY_MESSAGING": "1",
@@ -127,6 +133,10 @@
   "durable_objects": {
     "bindings": [
       {
+        "name": "UAA_LOGOUT_DISPATCH",
+        "class_name": "AcademyLogoutDispatcher"
+      },
+      {
         "name": "PROGRAM_TIMETABLE_COORDINATOR",
         "class_name": "ProgramTimetableCoordinator"
       },
@@ -143,15 +153,20 @@
       "new_sqlite_classes": [
         "ProgramTimetableCoordinator"
       ]
+    },
+    {
+      "tag": "v1111-logout-dispatch",
+      "new_sqlite_classes": ["AcademyLogoutDispatcher"]
     }
   ],
   "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
   "triggers": {
     "crons": [
-      "0,15,30,45 5-6 * * MON",
-      "*/15 * * * *",
       "* * * * *",
-      "7 * * * *"
+      "5 */6 * * *",
+      "10 */6 * * *",
+      "15 */6 * * *",
+      "20 */6 * * *"
     ]
   },
   "d1_databases": [
@@ -171,6 +186,7 @@
     "head_sampling_rate": 1
   },
   "vars": {
+    "UAA_V111_ROUTINE_RECOVERY": "1",
     "ACADEMY_ACCEPTED_SETUP": "1",
     "ACADEMY_NOTE_RETENTION": "1",
     "ACADEMY_MESSAGING": "1",
