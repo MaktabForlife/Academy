@@ -120,12 +120,14 @@ export class AcademyCeremonies {
   requireThat(uuid(attemptId)&&typeof pin==='string'&&/^[0-9]{4}$/.test(pin),'INVALID_PIN_FORMAT',400);
   if(setup)requireThat(typeof confirmation==='string'&&/^[0-9]{4}$/.test(confirmation)&&pin===confirmation,'PIN_CONFIRMATION_MISMATCH',400);
   const auth=await this.pinRequest(request,tx);let now=this.clock();atLeast(now);
-  let attempt=await this.store.first('SELECT * FROM jwt_v2_ceremony_attempts WHERE attempt_id=?',attemptId);
+  const [[attempt],[ceremony]]=await this.store.readBatch([
+   ['SELECT * FROM jwt_v2_ceremony_attempts WHERE attempt_id=? AND tx=?',attemptId,tx],
+   ['SELECT * FROM jwt_v2_ceremonies WHERE tx=?',tx]
+  ]);
   requireThat(attempt&&attempt.tx===tx&&equal(attempt.csrf_hash,auth.csrfHash),'UNISSUED_PIN_ATTEMPT',403);
   if(attempt.status==='DONE')return JSON.parse(attempt.result_json);
   requireThat(attempt.status!=='CANCELLED','CREDENTIAL_CHANGED',409);
   requireThat(attempt.status==='ISSUED'&&now<attempt.expires_at,'PIN_BUSY',503);
-  let ceremony=await this.store.first('SELECT * FROM jwt_v2_ceremonies WHERE tx=?',tx);
   requireThat(ceremony&&ceremony.status==='PENDING'&&ceremony.sub===attempt.sub&&now<ceremony.expires_at,'CEREMONY_EXPIRED',409);
   const c=accountSnapshot(await this.credentialSnapshot(attempt.sub));
   requireThat(c.active&&c.ce===attempt.credential_epoch&&c.generation===attempt.gate_generation,'CREDENTIAL_CHANGED',409);
@@ -144,11 +146,12 @@ export class AcademyCeremonies {
   const sourceKey=await domainDigest('uaa-pin-source-v2',{env:this.config.env,address:normalizePlatformAddress(attested.address)});
   const capacity=await this.store.first('SELECT count(*) n FROM jwt_v2_ceremony_reservations WHERE source_key=? AND expires_at>?',sourceKey,now);
   requireThat(capacity.n<2,'REQUEST_RATE_LIMITED',429);
-  for(const [kind,key,limit] of [['source',sourceKey,10000],['ceremony',tx,5000]])await this.store.stmt('INSERT INTO jwt_v2_ceremony_budgets VALUES(?,?,?,?,?) ON CONFLICT(kind,budget_key) DO NOTHING',kind,key,limit,now,now+120).run();
+  const budgets=[['source',sourceKey,10000],['ceremony',tx,5000]].map(([kind,key,limit])=>
+   this.store.stmt('INSERT INTO jwt_v2_ceremony_budgets VALUES(?,?,?,?,?) ON CONFLICT(kind,budget_key) DO NOTHING',kind,key,limit,now,now+120));
   const [g,clear]=this.store.guard("SELECT 1 FROM jwt_v2_pin_gates g JOIN jwt_v2_ceremony_attempts a ON a.sub=g.sub JOIN jwt_v2_ceremonies c ON c.tx=a.tx WHERE g.sub=? AND g.generation=? AND g.paused_until<=? AND (g.reservation IS NULL OR g.reservation_until<=?) AND a.attempt_id=? AND a.status='ISSUED' AND a.expires_at>? AND c.status='PENDING' AND c.expires_at>? AND (SELECT count(*) FROM jwt_v2_ceremony_reservations WHERE source_key=? AND expires_at>?)<2 AND (SELECT min(10000,tokens_milli+max(0,?-last_at)*1000) FROM jwt_v2_ceremony_budgets WHERE kind='source' AND budget_key=?)>=1000 AND (SELECT min(5000,tokens_milli+max(0,?-last_at)*100) FROM jwt_v2_ceremony_budgets WHERE kind='ceremony' AND budget_key=?)>=1000",[attempt.sub,c.generation,now,now,attemptId,now,now,sourceKey,now,now,sourceKey,now,tx]);
   const native=this.credentialGuard(c),[cg,cc]=this.store.guard(native.sql,native.args);
   try{
-   await this.store.batch([g,cg,
+   await this.store.batch([...budgets,g,cg,
     this.store.stmt("UPDATE jwt_v2_ceremony_budgets SET tokens_milli=min(10000,tokens_milli+max(0,?-last_at)*1000)-1000,last_at=?,expires_at=? WHERE kind='source' AND budget_key=?",now,now,now+120,sourceKey),
     this.store.stmt("UPDATE jwt_v2_ceremony_budgets SET tokens_milli=min(5000,tokens_milli+max(0,?-last_at)*100)-1000,last_at=?,expires_at=? WHERE kind='ceremony' AND budget_key=?",now,now,now+120,tx),
     this.store.stmt('DELETE FROM jwt_v2_ceremony_reservations WHERE expires_at<=?',now),

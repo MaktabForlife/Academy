@@ -16,6 +16,7 @@ export function database(app='studio'){
    metrics.queries++;const st=raw.prepare(sql);
    if(mode==='all')return {success:true,results:st.all(...args),meta:{}};
    if(mode==='first')return st.get(...args)||null;
+   if(st.columns().length)return {success:true,results:st.all(...args),meta:{}};
    const r=st.run(...args);return {success:true,results:[],meta:{changes:Number(r.changes)}};
   },async first(){return stmt.execute('first');},async all(){return stmt.execute('all');},async run(){return stmt.execute('run');}};return stmt;
  },async batch(list){metrics.batches++;raw.exec('BEGIN IMMEDIATE');try{const results=list.map(s=>s.execute('run'));raw.exec('COMMIT');return results;}catch(e){raw.exec('ROLLBACK');throw e;}}};

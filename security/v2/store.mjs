@@ -44,7 +44,19 @@ export class PrimaryStore {
   requireThat(safeInt(f.now)&&safeInt(f.deadline)&&safeInt(f.idleUntil)&&safeInt(f.policyMinutes,15)&&f.policyMinutes<=200&&f.idleUntil<=Math.min(c.s_exp,(f.lastRefresh??f.now)+f.policyMinutes*60),'INVALID_INITIAL_LEASE',409);
   if(state==='UNLOCKED')requireThat(f.deadline<=f.projection.timedUntil,'TIMED_AUTHORITY_EXPIRED',409);
   if(state==='UNLOCKED')await assertCaptureReceipt({capture:f.capture,binding:c,projection:f.projection,guards:f.vectorGuards,manifest:typeof this.dependencyManifest==='function'?this.dependencyManifest(c.sub):this.dependencyManifest,app:this.app,env:this.env,now:f.now});
-  const vectorChecks=f.vectorGuards.map(([id,scope,epoch,revision])=>this.guard('SELECT 1 FROM jwt_v2_dependencies WHERE id=? AND scope=? AND owner_epoch=? AND revision=?',[id,scope,epoch,revision]));
+  // Check every captured revision in the family commit using one guard row.
+  const vectorChecks=state==='UNLOCKED'?[this.guard(`
+   SELECT 1 WHERE NOT EXISTS(
+    SELECT 1 FROM json_each(?) AS required
+    WHERE NOT EXISTS(
+     SELECT 1 FROM jwt_v2_dependencies current
+     WHERE current.id=json_extract(required.value,'$[0]')
+      AND current.scope=json_extract(required.value,'$[1]')
+      AND current.owner_epoch=json_extract(required.value,'$[2]')
+      AND current.revision=json_extract(required.value,'$[3]')
+    )
+   )`,[canonical(f.vectorGuards)])]:f.vectorGuards.map(([id,scope,epoch,revision])=>this.guard(
+   'SELECT 1 FROM jwt_v2_dependencies WHERE id=? AND scope=? AND owner_epoch=? AND revision=?',[id,scope,epoch,revision]));
   const [g,clear]=this.guard("SELECT 1 FROM jwt_v2_accounts a JOIN jwt_v2_parents p ON p.sub=a.sub JOIN jwt_v2_browsers b ON b.bsid=p.bsid WHERE a.sub=? AND a.active=1 AND a.ce=? AND a.ae=? AND a.le=? AND p.psid=? AND p.ce=a.ce AND p.ae=a.ae AND p.bv=? AND p.bsid=? AND p.state IN('UNLOCKED','LOCKED') AND (?='ADMITTED_LOCKED' OR p.state='UNLOCKED') AND p.s_exp=? AND p.s_exp>? AND b.bv=p.bv AND b.sub=a.sub AND b.psid=p.psid AND b.cancelled_through<p.bv",[c.sub,c.ce,c.ae,c.le,c.psid,c.bv,c.bsid,state,c.s_exp,f.now]);
   const [floor,floorClear]=admissionFloorGuard(this,c);
   const issuance=state==='UNLOCKED'?issuanceFloorGuard(this,{binding:c,projection:f.projection,vectorGuards:f.vectorGuards,state,now:f.now}):[null,null];

@@ -1,3 +1,4 @@
+import {logoutPublicationLimit} from './runtime-service.mjs';
 import {canonical,requireThat,uuid} from './codec.mjs';
 import {verifyBootstrap,browserBody} from './browser-security.mjs';
 import {clearCookies} from './tokens.mjs';
@@ -57,7 +58,7 @@ async function exit(runtime,request,body,kind){
   requireThat(['ACCEPTED','ALREADY_COVERED'].includes(result.status),'LOGOUT_RECONCILIATION_REQUIRED',503);
   // The exact original holder and cancelled intent can continue this work
   // after the cutoff commits. Only a fully published workset clears cookies.
-  requireThat(await runtime.publishPending(result.receipt,{limit:6}),'LOGOUT_PUBLICATION_PENDING',503);
+  requireThat(await runtime.publishPending(result.receipt,{limit:logoutPublicationLimit,...(result.cutoff?.reason==='VOLUNTARY_LOGOUT'?{logoutTarget:result.cutoff}:{})}),'LOGOUT_PUBLICATION_PENDING',503);
   outcome='ACCEPTED_PENDING';canonicalAccepted=true;
  }else if(kind==='logout'){
   const {runtimeServices}=await import('./runtime-service.mjs'),services=await runtimeServices(runtime),result=await services.queueReport({binding:JSON.parse(f.binding_json),kind:'logout',operationId:body.operationId,now:runtime.clock()});outcome=result?.outcome||'GLOBAL_UNCONFIRMED';canonicalAccepted=result?.canonicalAccepted===true;globalConfirmed=result?.globalConfirmed===true;

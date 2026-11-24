@@ -23,6 +23,14 @@ async function readVector(db,references){
 const bounded=result=>{requireThat(bytes(canonical(result)).length<=2*1024*1024,'NATIVE_RIGHTS_TOO_LARGE',503);return result;};
 const sequence=(rows,limit=6000)=>{requireThat(rows.length<=limit,'NATIVE_SCOPE_TOO_LARGE',503);return rows;};
 
+const splitFenceSQL='SELECT version,(SELECT count(*) FROM split_write_fence) pending,(SELECT head_id FROM setup_head_state WHERE singleton=1) accepted_head FROM split_read_state WHERE singleton=1';
+function checkedFence(row){
+ requireThat(row&&safeInt(row.version)&&typeof row.accepted_head==='string','NATIVE_SPLIT_STATE_UNAVAILABLE',503);
+ requireThat(row.pending===0,'SPLIT_RECOVERY_PENDING',503);
+ return {version:row.version,acceptedHead:row.accepted_head};
+}
+const credentialSQL='SELECT a.account_id,a.login_link_id,a.active,a.revision,c.credential_epoch,c.pin_setup,c.pin_hash FROM accounts a LEFT JOIN account_credentials c USING(account_id)';
+
 export class AcademyNativeAdapter {
  #credentials=new WeakMap();
  constructor({env,dependencies,clock=()=>Math.floor(Date.now()/1000)}){
@@ -31,17 +39,29 @@ export class AcademyNativeAdapter {
   this.env=env;this.db=env.ACADEMY_DB.withSession('first-primary');this.repository=academyD1Repository(env);this.dependencies=refs(dependencies);this.clock=clock;
  }
  async fence(){
-  const row=await this.db.prepare('SELECT version,(SELECT count(*) FROM split_write_fence) pending,(SELECT head_id FROM setup_head_state WHERE singleton=1) accepted_head FROM split_read_state WHERE singleton=1').first();
-  requireThat(row&&safeInt(row.version)&&typeof row.accepted_head==='string','NATIVE_SPLIT_STATE_UNAVAILABLE',503);
-  requireThat(row.pending===0,'SPLIT_RECOVERY_PENDING',503);return {version:row.version,acceptedHead:row.accepted_head};
+  return checkedFence(await this.db.prepare(splitFenceSQL).first());
  }
- async selection(loginId){
-  ids(loginId);const row=await this.db.prepare('SELECT account_id FROM accounts WHERE login_link_id=? COLLATE NOCASE').bind(loginId).first();
-  requireThat(row,'NATIVE_ACCOUNT_UNAVAILABLE',401);return this.credentialSnapshot(row.account_id);
+ selection(loginId){
+  ids(loginId);
+  return this.readCredential(loginId,true);
  }
- async credentialSnapshot(sub){
-  ids(sub);await this.fence();
-  const row=await this.db.prepare('SELECT a.account_id,a.login_link_id,a.active,a.revision,c.credential_epoch,c.pin_setup,c.pin_hash FROM accounts a JOIN account_credentials c USING(account_id) WHERE a.account_id=? COLLATE NOCASE').bind(sub).first();
+ credentialSnapshot(sub){
+  ids(sub);
+  return this.readCredential(sub,false);
+ }
+ async readCredential(id,byLogin){
+  const db=this.env.ACADEMY_DB.withSession('first-primary');
+  const results=await db.batch([
+   db.prepare(splitFenceSQL),
+   db.prepare(credentialSQL+(byLogin?' WHERE a.login_link_id=? COLLATE NOCASE':' WHERE a.account_id=? COLLATE NOCASE')).bind(id)
+  ]);
+  requireThat(results.length===2&&results.every(r=>r.success&&Array.isArray(r.results)),'NATIVE_CREDENTIAL_UNAVAILABLE',503);
+  const row=results[1].results[0];
+  if(byLogin){
+   requireThat(row,'NATIVE_ACCOUNT_UNAVAILABLE',401);
+   ids(row.account_id);
+  }
+  checkedFence(results[0].results[0]);
   requireThat(row&&safeInt(row.credential_epoch,1)&&[0,1].includes(row.pin_setup)&&[0,1].includes(row.active),'NATIVE_CREDENTIAL_UNAVAILABLE',503);
   const result=Object.freeze({sub:row.account_id,ce:row.credential_epoch,generation:row.credential_epoch,revision:String(row.revision)+':'+row.credential_epoch+':'+row.pin_setup,active:row.active===1,setupComplete:row.pin_setup===1});
   this.#credentials.set(result,row);return result;

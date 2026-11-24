@@ -1,3 +1,6 @@
+import {planSnapshotAdmission} from './snapshot-source-admission.mjs';
+import {steppedBuildProtocol} from './snapshot.mjs';
+import {buildPending,captureSourceHistory,sourceBuildStage} from './source-snapshot-progress.mjs';
 import {withdrawalFields} from './key-withdrawal.mjs';
 import {sharedAccountSelector,sharedAccountBaselinePlan} from './shared-account-baselines.mjs';
 import {senderFloorSchemaSQL} from './sender-floors.mjs';
@@ -17,6 +20,7 @@ export const runtimeServiceSchemaSQL=[
  "CREATE TABLE IF NOT EXISTS jwt_v2_service_outbox(operation_id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN('logout','incidents')),report_json TEXT NOT NULL,request_digest TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('PENDING','ACKNOWLEDGED')),attempts INTEGER NOT NULL DEFAULT 0,next_attempt_at INTEGER NOT NULL DEFAULT 0,result_json TEXT);",
  "CREATE TRIGGER IF NOT EXISTS jwt_v2_service_outbox_immutable BEFORE UPDATE ON jwt_v2_service_outbox WHEN OLD.operation_id<>NEW.operation_id OR OLD.kind<>NEW.kind OR OLD.report_json<>NEW.report_json OR OLD.request_digest<>NEW.request_digest OR NEW.attempts<OLD.attempts OR (OLD.state='ACKNOWLEDGED' AND NEW.state<>'ACKNOWLEDGED') OR (OLD.result_json IS NOT NULL AND OLD.result_json IS NOT NEW.result_json) BEGIN SELECT RAISE(ABORT,'service_outbox_immutable'); END;"
 ].join('\n')+'\n'+senderFloorSchemaSQL;
+export const logoutPublicationLimit=2;
 const instances=new WeakMap(),child=app=>app==='studio'||app==='hifz';
 const bucketFor={accountCutoff:'accountCutoffs',credentialEpoch:'credentialFloors',parent:'parentCutoffs',browser:'browserCutoffs',key:'keyWithdrawals',policy:'policies',dependency:'dependencyFloors'};
 const logical=projection=>Object.fromEntries(Object.entries(projection).filter(([key])=>!['schema','incarnation','generation','state','publicationNonce'].includes(key)));
@@ -52,7 +56,8 @@ class RuntimeServices{
  async eventOptions(peer){
   requireThat(peer.sourceApp==='academy'&&peer.targetApp===this.runtime.app&&child(this.runtime.app),'EVENT_DIRECTION_CONFLICT',403);
   const streams=new Map();for(const entry of this.registry.streams.filter(s=>s.targetApp===this.runtime.app)){await this.ledger(entry.targetApp,entry.stream,entry.ownerEpoch);if(!streams.has(entry.stream))streams.set(entry.stream,new Set());streams.get(entry.stream).add(entry.ownerEpoch);}
-  const budget={remaining:20};return {streams,dependencies:this.registry.dependencies,planEffect:e=>{if(e.target.type==='dependency'){const rule=this.registry.dependencies.get(e.target.id);requireThat(rule.scope==='GLOBAL'?e.sub===null:typeof e.sub==='string','EVENT_DEPENDENCY_SCOPE_CONFLICT',409);}return this.effectPlan(e.eventId,e.target,{sub:e.sub});},publishAndCovered:e=>this.publishWork(e.eventId,{budget})};
+  const budget={remaining:20},logoutBudget={remaining:logoutPublicationLimit};return {streams,dependencies:this.registry.dependencies,planEffect:e=>{if(e.target.type==='dependency'){const rule=this.registry.dependencies.get(e.target.id);requireThat(rule.scope==='GLOBAL'?e.sub===null:typeof e.sub==='string','EVENT_DEPENDENCY_SCOPE_CONFLICT',409);}return this.effectPlan(e.eventId,e.target,{sub:e.sub});},publishAndCovered:e=>this.publishWork(e.eventId,{
+   budget:e.target.type==='accountCutoff'&&e.target.reason==='VOLUNTARY_LOGOUT'?logoutBudget:budget})};
  }
  async policyPlan(target,now){
   validatePolicy(target);const epoch=await this.store.first('SELECT * FROM jwt_v2_policy_epochs WHERE owner_epoch=?',target.ownerEpoch);requireThat(epoch&&target.revision>=epoch.base_revision&&(epoch.sealed_through===null||target.revision<=epoch.sealed_through),'POLICY_EPOCH_RECONCILIATION_REQUIRED',409);
@@ -67,13 +72,16 @@ class RuntimeServices{
   const native=typeof this.runtime.native?.applySecurityFactPlan==='function'?await this.runtime.native.applySecurityFactPlan({target,scopeSub:sub}):[];requireThat(Array.isArray(native),'NATIVE_SECURITY_FACT_PLAN_REQUIRED',503);
    return [...native,...(target.type==='policy'?await this.policyPlan(target,now):[]),...await restrictionPlan(this.store,{workId,target,sub,now,requiredControlKeys})];
  }
- async publishWork(workId,{budget={remaining:20}}={}){
+ async publishWork(workId,{budget={remaining:20},firstSid=null}={}){
   const work=await this.store.first('SELECT * FROM jwt_v2_worksets WHERE work_id=?',workId);requireThat(work,'PUBLICATION_WORK_UNKNOWN',409);const target=strictJSON(work.target_json);
   if(target.type==='policy')await this.finishPolicy(target);
   if(target.type==='key')await this.finishKey(target,workId);
   const controls=await this.store.all('SELECT * FROM jwt_v2_control_publications WHERE work_id=? AND covered=0',workId);
   for(const control of controls){requireThat(control.object_key===this.store.controlKey('control/app'),'UNKNOWN_SERVICE_CONTROL',503);const published=await this.runtime.cache.publish('control/app',async()=>strictJSON((await this.store.first('SELECT projection_json FROM jwt_v2_control_targets WHERE object_key=?',control.object_key)).projection_json));await markControlCovered(this.store,{workId,controlKey:control.object_key,projection:published});}
-  {const rows=budget.remaining>0?await this.store.all('SELECT sid FROM jwt_v2_publications WHERE work_id=? AND published_cr IS NULL AND covered_by_expiry=0 LIMIT ?',workId,Math.min(20,budget.remaining)):[];
+  {const pending="SELECT sid FROM jwt_v2_publications WHERE work_id=? AND published_cr IS NULL AND covered_by_expiry=0";
+   const rows=budget.remaining>0?await this.store.all(
+    pending+(firstSid===null?'':' ORDER BY (sid IS ?) DESC,sid')+' LIMIT ?',
+    workId,...(firstSid===null?[]:[firstSid]),Math.min(20,budget.remaining)):[];
    for(const row of rows){budget.remaining--;let family=await this.store.family(row.sid);if(this.runtime.clock()>=family.s_exp){await markSessionCovered(this.store,{workId,sid:row.sid,now:this.runtime.clock()});continue;}
     if(target.type==='policy')await applyFamilyPolicy(this.store,{sid:row.sid,now:this.runtime.clock()});
     family=await this.store.family(row.sid);const saved=strictJSON(family.projection_json),next={...saved,enforcedTargets:compactFloors([...(saved.enforcedTargets||[]),target])};
@@ -128,7 +136,13 @@ class RuntimeServices{
   requireThat(this.runtime.app==='academy'&&child(peer.sourceApp)&&body.schema===2&&body.env===this.runtime.config.env&&body.sourceApp===peer.sourceApp&&body.targetApp==='academy'&&uuid(body.operationId)&&uuid(body.psid)&&uuid(body.sid)&&uuid(body.bsid)&&safeInt(body.bv,1)&&safeInt(body.ce,1)&&safeInt(body.ae,1)&&typeof body.sub==='string'&&bytes(body.sub).length>0&&bytes(body.sub).length<=180&&!/[\u0000-\u0020\u007f]/.test(body.sub)&&ascii(body.evidenceRef,128),'INVALID_CHILD_REPORT',400);
   requireThat(kind==='logout'?body.kind==='VOLUNTARY_LOGOUT':['VERIFIED_REFRESH_REUSE','CONFIRMED_KEY_COMPROMISE'].includes(body.kind),'REPORT_PURPOSE_CONFLICT',403);
   const hash=await digest(body),old=await this.store.first('SELECT * FROM jwt_v2_service_reports WHERE operation_id=?',body.operationId);
-  requireThat(!old||old.request_digest===hash,'REPORT_OPERATION_CONFLICT',409);if(old?.result_json)return strictJSON(old.result_json);
+  requireThat(!old||old.request_digest===hash,'REPORT_OPERATION_CONFLICT',409);
+  if(old?.result_json){
+   const result=strictJSON(old.result_json);
+   if(kind==='logout'&&result.status==='ACCEPTED')
+    await this.continueAcceptedLogout(result.receipt);
+   return result;
+  }
   const parent=await this.store.first('SELECT * FROM jwt_v2_parents WHERE psid=?',body.psid);
   requireThat(parent&&parent.sub===body.sub&&parent.bsid===body.bsid&&parent.bv===body.bv&&parent.ce===body.ce&&parent.ae===body.ae,'REPORT_PARENT_BINDING_CONFLICT',409);
   if(this.runtime.clock()>=parent.s_exp)return {schema:2,operationId:body.operationId,status:'RECONCILIATION_REQUIRED',cutoff:null,receipt:null};
@@ -140,8 +154,55 @@ class RuntimeServices{
   const nowKnown=await this.store.first('SELECT result_json FROM jwt_v2_service_reports WHERE operation_id=?',body.operationId);
   if(nowKnown.result_json){requireThat(nowKnown.result_json===canonical(result),'REPORT_RECEIPT_CONFLICT',409);return strictJSON(nowKnown.result_json);}
   await this.store.batch([g,this.store.stmt('UPDATE jwt_v2_service_reports SET result_json=? WHERE operation_id=?',canonical(result),body.operationId),c]);
-  if(accepted.status==='ACCEPTED')await this.publishWork(body.operationId).catch(()=>{});
+  if(accepted.status==='ACCEPTED'){
+   if(kind==='logout')await this.continueAcceptedLogout(accepted.receipt);
+   else await this.publishWork(body.operationId).catch(()=>{});
+  }
   return result;
+ }
+
+ async continueAcceptedLogout(operationId){
+  const row=await this.store.first(
+   "SELECT w.state,w.target_json FROM jwt_v2_worksets w JOIN jwt_v2_operations o ON o.operation_id=w.work_id WHERE w.work_id=? AND o.kind='VOLUNTARY_LOGOUT'",
+   operationId);
+  requireThat(row,'LOGOUT_WORK_UNKNOWN',409);
+  if(row.state==='APPLIED')return true;
+  return this.runtime.publishPending(operationId,{limit:logoutPublicationLimit,logoutTarget:strictJSON(row.target_json)});
+ }
+
+ async pendingLogout(limit=10){
+  requireThat(safeInt(limit,1)&&limit<=20&&this.runtime.env.UAA_V111_CUTOVER==='held','HELD_LOGOUT_REQUIRED',409);
+  if(this.runtime.app==='academy')
+   return this.store.all(
+    "SELECT o.operation_id FROM jwt_v2_worksets w JOIN jwt_v2_operations o ON o.operation_id=w.work_id WHERE w.state='PENDING' AND o.kind='VOLUNTARY_LOGOUT' ORDER BY w.created_at,w.work_id LIMIT ?",
+    limit);
+  return this.store.all(
+   "SELECT q.operation_id FROM jwt_v2_service_outbox q JOIN jwt_v2_worksets w ON w.work_id='local-report-'||q.operation_id WHERE q.kind='logout' AND (q.state='PENDING' OR w.state='PENDING') ORDER BY q.next_attempt_at,q.operation_id LIMIT ?",
+   limit);
+ }
+
+ async resumeLogout(operationId){
+  requireThat(uuid(operationId)&&this.runtime.env.UAA_V111_CUTOVER==='held','HELD_LOGOUT_REQUIRED',409);
+  if(this.runtime.app==='academy'){
+   const localComplete=await this.continueAcceptedLogout(operationId);
+   return {operationId,localComplete,canonicalAccepted:true,canonicalWorkId:operationId,globalConfirmed:false};
+  }
+  const saved=await this.store.first("SELECT * FROM jwt_v2_service_outbox WHERE operation_id=? AND kind='logout'",operationId);
+  requireThat(saved,'LOGOUT_WORK_UNKNOWN',409);
+  const report=strictJSON(saved.report_json);
+  requireThat(report.operationId===operationId&&report.sourceApp===this.runtime.app
+   &&report.targetApp==='academy'&&report.kind==='VOLUNTARY_LOGOUT'
+   &&saved.request_digest===await digest(report),'LOGOUT_WORK_BINDING_CHANGED',409);
+  const workId='local-report-'+operationId;
+  const work=await this.store.first('SELECT state FROM jwt_v2_worksets WHERE work_id=?',workId);
+  requireThat(work,'LOGOUT_WORK_UNKNOWN',409);
+  const localComplete=work.state==='APPLIED'||await this.publishWork(workId,
+   {budget:{remaining:logoutPublicationLimit},firstSid:report.sid});
+  if(saved.state!=='ACKNOWLEDGED')await this.deliverReports({limit:1,operationId});
+  const current=await this.store.first('SELECT state,result_json FROM jwt_v2_service_outbox WHERE operation_id=?',operationId);
+  const canonicalAccepted=current.state==='ACKNOWLEDGED';
+  return {operationId,localComplete,canonicalAccepted,
+   canonicalWorkId:canonicalAccepted?strictJSON(current.result_json).receipt:null,globalConfirmed:false};
  }
 
  async queueReport({binding,kind,operationId,now=this.runtime.clock(),incidentKind,evidenceRef}){
@@ -159,7 +220,13 @@ class RuntimeServices{
    try{await this.store.batch([g,...effects,this.store.stmt('UPDATE jwt_v2_accounts SET le=max(le,?),revision=revision+1 WHERE sub=? AND ce=? AND ae=?',binding.le+1,binding.sub,binding.ce,binding.ae),this.store.stmt("INSERT INTO jwt_v2_service_outbox(operation_id,kind,report_json,request_digest,state) VALUES(?,?,?,?,'PENDING')",operationId,kind,canonical(report),hash),c]);}
    catch(e){const raced=await this.store.first('SELECT request_digest FROM jwt_v2_service_outbox WHERE operation_id=?',operationId);requireThat(raced?.request_digest===hash,'LOCAL_REPORT_CAPTURE_UNAVAILABLE',503);}
   }
-  await this.publishWork(workId).catch(()=>{});
+  if(kind==='logout'){
+   await this.publishWork(workId,{budget:{remaining:logoutPublicationLimit},firstSid:binding.sid});
+   const holder=await this.store.first(
+    'SELECT 1 FROM jwt_v2_publications WHERE work_id=? AND sid=? AND (published_cr IS NOT NULL OR covered_by_expiry=1)',
+    workId,binding.sid);
+   requireThat(holder,'LOCAL_LOGOUT_PUBLICATION_PENDING',503);
+  }else await this.publishWork(workId).catch(()=>{});
   await this.deliverReports({limit:1,operationId,now}).catch(()=>{});
   const current=await this.store.first('SELECT * FROM jwt_v2_service_outbox WHERE operation_id=?',operationId),receipt=current.result_json&&strictJSON(current.result_json);
   return {operationId,outcome:current.state==='ACKNOWLEDGED'?'ACCEPTED_PENDING':'GLOBAL_UNCONFIRMED',canonicalAccepted:current.state==='ACKNOWLEDGED',globalConfirmed:false,receipt:receipt??null};
@@ -182,17 +249,61 @@ class RuntimeServices{
  streamMap(targetApp){const result=new Map();for(const s of this.registry.streams.filter(s=>s.targetApp===targetApp)){if(!result.has(s.stream))result.set(s.stream,new Set());result.get(s.stream).add(s.ownerEpoch);}return result;}
  async reconcileOwner(request,peer){
   requireThat(this.runtime.app==='academy'&&peer.sourceApp===request.recipientApp,'RECONCILE_DIRECTION_CONFLICT',403);
-  const config={env:this.runtime.config.env,recipientApp:peer.sourceApp,snapshotSchema:this.runtime.settings.raw.snapshotSchema};validateReconcileRequest(request,config);
+  const config={env:this.runtime.config.env,recipientApp:peer.sourceApp,snapshotSchema:this.runtime.settings.raw.snapshotSchema,snapshotBuildSteps:this.runtime.settings.raw.snapshotBuildSteps===true};validateReconcileRequest(request,config);
+  const stepping=request.buildProtocol===steppedBuildProtocol;
+  const selected=config.snapshotBuildSteps;
+  if(stepping){
+   requireThat(selected,'SNAPSHOT_BUILD_PROFILE_CHANGED',409);
+   requireThat(this.runtime.env.UAA_V111_CUTOVER==='held','SNAPSHOT_BUILD_HOLD_REQUIRED',503);
+  }
   const existing=await this.store.first('SELECT * FROM jwt_v2_replay_captures WHERE request_id=?',request.requestId);
   const streams=this.streamMap(peer.sourceApp);
   if(existing){requireThat(existing.request_binding===requestBinding(request),'RECONCILE_REQUEST_CONFLICT',409);await verifyEventReplay({raw:existing.reply_json,request,config,streams,dependencies:this.registry.dependencies});return existing.reply_json;}
   const keys=cursorKeys(this.runtime),captured=await this.store.first('SELECT * FROM jwt_v2_reconcile_captures WHERE request_id=?',request.requestId);
-  if(captured){requireThat(captured.request_binding===requestBinding(request),'RECONCILE_REQUEST_CONFLICT',409);const key=keys.keys.get(captured.cursor_key_id);requireThat(key,'SNAPSHOT_CURSOR_KEY_RETIRED',503);if(captured.status!=='READY')await buildSnapshot({store:this.snap,snapshotId:captured.snapshot_id,cursorKey:key,cursorKeyId:captured.cursor_key_id,config,recordConfig:{dependencies:this.registry.dependencies,recognisedEpochs:streams.get(request.stream)},now:this.runtime.clock(),clock:this.runtime.clock,digestStreamFactory:this.runtime.digestStreamFactory});return serveSnapshotPage({store:this.snap,request,config,cursorKey:key,cursorKeyId:captured.cursor_key_id,now:this.runtime.clock()});}
+  if(!stepping&&selected)requireThat(captured?.status==='READY','SNAPSHOT_BUILD_PROFILE_CHANGED',409);
+  const serve=async capture=>{
+   requireThat(capture.request_binding===requestBinding(request),'RECONCILE_REQUEST_CONFLICT',409);
+   if(!stepping){
+    // A receipt from the earlier isolated build lacked the request profile.
+    // Never reinterpret such retained work as a legacy capture.
+    const stored=await this.store.first(`SELECT
+     EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='jwt_v2_snapshot_source_fences') AS has_fences,
+     EXISTS(SELECT 1 FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND bucket='sourceHistory') AS has_history`,capture.snapshot_id);
+    const old=stored.has_fences&&await this.store.first('SELECT 1 FROM jwt_v2_snapshot_source_fences WHERE snapshot_id=?',capture.snapshot_id);
+    requireThat(!stored.has_history&&!old,'SNAPSHOT_BUILD_PROFILE_CHANGED',409);
+   }
+   const key=keys.keys.get(capture.cursor_key_id);
+   requireThat(key,'SNAPSHOT_CURSOR_KEY_RETIRED',503);
+   const base=strictJSON(capture.base_json),now=this.runtime.clock();
+   requireThat(now<base.expiresAt,'SNAPSHOT_EXPIRED_OR_INVALID',409);
+   const recordConfig={dependencies:this.registry.dependencies,recognisedEpochs:streams.get(request.stream)};
+   const params={store:this.snap,request,config,cursorKey:key,cursorKeyId:capture.cursor_key_id};
+   if(stepping){
+    requireThat(capture.status==='READY'||request.pageToken===null,'UNKNOWN_SNAPSHOT_CONTINUATION',409);
+    const stage=await sourceBuildStage({
+     store:this.snap,base,status:capture.status,
+     validate:{env:config.env,targetApp:peer.sourceApp,streams,dependencies:this.registry.dependencies}
+    });
+    if(stage.pending)return buildPending(base,request,stage.pending);
+    if(capture.status!=='READY'){
+     const progress=await buildSnapshot({...params,snapshotId:base.snapshotId,recordConfig,now,step:true,source:stage,
+      clock:this.runtime.clock,digestStreamFactory:this.runtime.digestStreamFactory});
+     if(progress.pending)return buildPending(base,request,progress);
+    }
+   }else if(capture.status!=='READY'){
+    await buildSnapshot({...params,snapshotId:base.snapshotId,recordConfig,now,
+     clock:this.runtime.clock,digestStreamFactory:this.runtime.digestStreamFactory});
+   }
+   return serveSnapshotPage({...params,now:this.runtime.clock()});
+  };
+  if(captured)return serve(captured);
   requireThat(request.pageToken===null,'UNKNOWN_SNAPSHOT_CONTINUATION',409);
   const ledger=await this.store.first('SELECT * FROM jwt_v2_sender_streams WHERE target_app=? AND stream=?',peer.sourceApp,request.stream);
   requireThat(ledger&&streams.get(request.stream)?.has(ledger.owner_epoch),'SOURCE_STREAM_NOT_INSTALLED',503);
   const configured=this.registry.streams.find(s=>s.targetApp===peer.sourceApp&&s.stream===request.stream&&s.ownerEpoch===ledger.owner_epoch),coveredThrough=ledger.next_sequence-1;
-  requireThat(safeInt(coveredThrough)&&request.contiguousThrough<=coveredThrough,'RECONCILE_CURSOR_AHEAD',409);
+  requireThat(safeInt(coveredThrough),'RECONCILE_CURSOR_AHEAD',409);
+  if(request.ownerEpoch===ledger.owner_epoch||request.ownerEpoch===null)
+   requireThat(request.contiguousThrough<=coveredThrough,'RECONCILE_CURSOR_AHEAD',409);
   let bridge=null;
   if(request.ownerEpoch===null)requireThat(configured.genesis,'EXPLICIT_GENESIS_RECONCILIATION_REQUIRED',409);
   else if(request.ownerEpoch!==ledger.owner_epoch){bridge=this.registry.bridges.find(b=>b.targetApp===peer.sourceApp&&b.stream===request.stream&&b.ownerEpoch===ledger.owner_epoch&&b.predecessorEpoch===request.ownerEpoch);requireThat(bridge&&request.contiguousThrough<=bridge.coveredThrough,'OWNER_BRIDGE_REQUIRED',409);}
@@ -212,6 +323,33 @@ class RuntimeServices{
   const epochs=[{epoch:ledger.owner_epoch,through:coveredThrough}];let current=ledger.owner_epoch;
   for(let depth=0;depth<16;depth++){const previous=this.registry.bridges.find(b=>b.targetApp===peer.sourceApp&&b.stream===request.stream&&b.ownerEpoch===current);if(!previous)break;requireThat(!epochs.some(e=>e.epoch===previous.predecessorEpoch),'OWNER_BRIDGE_CYCLE',503);epochs.push({epoch:previous.predecessorEpoch,through:previous.coveredThrough});current=previous.predecessorEpoch;}
   requireThat(this.registry.streams.some(s=>s.targetApp===peer.sourceApp&&s.stream===request.stream&&s.ownerEpoch===current&&s.genesis),'OWNER_BRIDGE_CHAIN_INCOMPLETE',503);
+  const now=this.runtime.clock(),base={schema:config.snapshotSchema,env:this.runtime.config.env,requestId:request.requestId,ownerApp:'academy',recipientApp:peer.sourceApp,stream:request.stream,ownerEpoch:ledger.owner_epoch,coveredThrough,predecessorEpoch:bridge?.predecessorEpoch??null,predecessorCoveredThrough:bridge?.coveredThrough??null,snapshotId:crypto.randomUUID(),createdAt:now,expiresAt:now+600};
+  if(stepping){
+   const scope=[base.recipientApp,base.stream];
+   const slots='SELECT 1 FROM jwt_v2_snapshot_source_slots WHERE recipient_app=? AND stream=?';
+   const active=await this.store.first(`SELECT c.* FROM jwt_v2_snapshot_source_slots z
+    JOIN jwt_v2_reconcile_captures c USING(snapshot_id) WHERE z.recipient_app=? AND z.stream=?`,...scope);
+   if(active){
+    requireThat(active.request_id===request.requestId,'SNAPSHOT_BUILD_SLOT_BUSY',409);
+    return serve(active);
+   }
+   const plan=await planSnapshotAdmission(this.store,{base,epochs,factBuckets:bucketFor});
+   guard.sql+=' AND ?>unixepoch()';guard.args.push(base.expiresAt);
+   for(const [sql,args] of plan.checks??[]){
+    guard.sql+=' AND '+sql;
+    guard.args.push(...args);
+   }
+   if(plan.admitted){guard.sql+=' AND NOT EXISTS('+slots+')';guard.args.push(...scope);}
+   let snapshotId;
+   try{
+    snapshotId=await this.snap.capturePrimary({request,base,cursorKeyId:keys.currentKid,selectors:plan.selectors,
+     guard,config,now,captureSource:store=>captureSourceHistory(store,{base,version:fence.version,plan})});
+   }catch(error){
+    if(plan.admitted)requireThat(!await this.store.first(slots,...scope),'SNAPSHOT_BUILD_SLOT_BUSY',409);
+    throw error;
+   }
+   return serve(await this.store.first('SELECT * FROM jwt_v2_reconcile_captures WHERE snapshot_id=?',snapshotId));
+  }
   for(const e of epochs){const count=await this.store.first("SELECT count(*) n FROM jwt_v2_sender_history WHERE target_app=? AND json_extract(event_json,'$.sourceApp')='academy' AND json_extract(event_json,'$.stream')=? AND json_extract(event_json,'$.ownerEpoch')=? AND CAST(json_extract(event_json,'$.sequence') AS INTEGER) BETWEEN 1 AND ?",peer.sourceApp,request.stream,e.epoch,e.through);requireThat(count.n===e.through,'SOURCE_OPERATIONAL_HISTORY_UNAVAILABLE',503);guard.sql+=" AND (SELECT count(*) FROM jwt_v2_sender_history WHERE target_app=? AND json_extract(event_json,'$.sourceApp')='academy' AND json_extract(event_json,'$.stream')=? AND json_extract(event_json,'$.ownerEpoch')=? AND CAST(json_extract(event_json,'$.sequence') AS INTEGER) BETWEEN 1 AND ?)=?";guard.args.push(peer.sourceApp,request.stream,e.epoch,e.through,e.through);}
   const historyWhere=epochs.map(()=>"(json_extract(event_json,'$.ownerEpoch')=? AND CAST(json_extract(event_json,'$.sequence') AS INTEGER)<=?)").join(' OR '),historyArgs=epochs.flatMap(e=>[e.epoch,e.through]);
   const clauses="target_app=? AND json_extract(event_json,'$.sourceApp')='academy' AND json_extract(event_json,'$.stream')=? AND ("+historyWhere+')';
@@ -231,14 +369,15 @@ class RuntimeServices{
    guard.args.push(...baseline.args,10000);
    selectors.push(baseline);
   }
-  const now=this.runtime.clock(),base={schema:config.snapshotSchema,env:this.runtime.config.env,requestId:request.requestId,ownerApp:'academy',recipientApp:peer.sourceApp,stream:request.stream,ownerEpoch:ledger.owner_epoch,coveredThrough,predecessorEpoch:bridge?.predecessorEpoch??null,predecessorCoveredThrough:bridge?.coveredThrough??null,snapshotId:crypto.randomUUID(),createdAt:now,expiresAt:now+600};
   const id=await this.snap.capturePrimary({request,base,cursorKeyId:keys.currentKid,selectors,guard,config,now});
-  await buildSnapshot({store:this.snap,snapshotId:id,cursorKey:keys.keys.get(keys.currentKid),cursorKeyId:keys.currentKid,config,recordConfig:{dependencies:this.registry.dependencies,recognisedEpochs:new Set(epochs.map(e=>e.epoch))},now,clock:this.runtime.clock,digestStreamFactory:this.runtime.digestStreamFactory});
-  return serveSnapshotPage({store:this.snap,request,config,cursorKey:keys.keys.get(keys.currentKid),cursorKeyId:keys.currentKid,now:this.runtime.clock()});
+  const key=keys.keys.get(keys.currentKid),params={store:this.snap,request,config,cursorKey:key,cursorKeyId:keys.currentKid};
+  await buildSnapshot({...params,snapshotId:id,recordConfig:{dependencies:this.registry.dependencies,recognisedEpochs:new Set(epochs.map(e=>e.epoch))},
+   now,clock:this.runtime.clock,digestStreamFactory:this.runtime.digestStreamFactory});
+  return serveSnapshotPage({...params,now:this.runtime.clock()});
  }
 
  receiver(request){
-  const config={env:this.runtime.config.env,recipientApp:this.runtime.app,snapshotSchema:this.runtime.settings.raw.snapshotSchema};validateReconcileRequest(request,config);
+  const config={env:this.runtime.config.env,recipientApp:this.runtime.app,snapshotSchema:this.runtime.settings.raw.snapshotSchema,snapshotBuildSteps:this.runtime.settings.raw.snapshotBuildSteps===true};validateReconcileRequest(request,config);
   requireThat(child(this.runtime.app)&&request.recipientApp===this.runtime.app,'RECONCILE_DIRECTION_CONFLICT',403);
   const entries=this.registry.streams.filter(s=>s.targetApp===this.runtime.app&&s.stream===request.stream),genesis=entries.filter(s=>s.genesis);
   requireThat(genesis.length===1&&(request.ownerEpoch===null||entries.some(s=>s.ownerEpoch===request.ownerEpoch)),'RECONCILE_EPOCH_NOT_CONFIGURED',409);
@@ -263,7 +402,13 @@ class RuntimeServices{
   requireThat(peer.sourceApp==='academy'&&peer.targetApp===this.runtime.app,'RECONCILE_REPLY_OWNER_CONFLICT',401);
   const receiver=this.receiver(request),pending=await this.store.first('SELECT * FROM jwt_v2_receive_requests WHERE request_id=?',request.requestId);
   requireThat(pending&&pending.request_binding===requestBinding(request)&&['PENDING','COMPLETE'].includes(pending.status),'UNREQUESTED_RECONCILIATION_REPLY',409);
-  const reply=strictJSON(raw),options=await this.eventOptions(peer);
+  const reply=strictJSON(raw);
+  if(reply.mode==='BUILD_PENDING'){
+   requireThat(this.runtime.env.UAA_V111_CUTOVER==='held','SNAPSHOT_BUILD_HOLD_REQUIRED',503);
+   await receiver.stageBuildProgress(request,reply,{now:this.runtime.clock()});
+   return {mode:'BUILD_PENDING'};
+  }
+  const options=await this.eventOptions(peer);
   if(reply.mode==='EVENTS'){
    const verified=await verifyEventReplay({raw,request,config:receiver.config,streams:options.streams,dependencies:this.registry.dependencies});
    if(verified.events.length){const batch={schema:2,env:this.runtime.config.env,sourceApp:'academy',targetApp:this.runtime.app,batchId:request.requestId,events:verified.events};await receiveBatch({body:canonical(batch),config:this.runtime.config,store:this.store,...options});}
@@ -272,13 +417,9 @@ class RuntimeServices{
    await this.store.stmt("UPDATE jwt_v2_receive_requests SET status='COMPLETE' WHERE request_id=? AND status='PENDING'",request.requestId).run();return {mode:'EVENTS',automaticCoverage:false};
   }
   requireThat(reply.mode==='SNAPSHOT','UNKNOWN_RECONCILE_MODE',409);
-  const staged=await receiver.stage(raw,{now:this.runtime.clock()});
-  // A signed source watermark can hold local admission while effects are
-  // pending. Only finishApplied may advance contiguous coverage.
-  await this.store.stmt(`UPDATE jwt_v2_event_streams SET highest_seen=max(highest_seen,?)
-   WHERE source_app='academy' AND target_app=? AND stream=? AND owner_epoch=?`,
-   reply.coveredThrough,this.runtime.app,reply.stream,reply.ownerEpoch).run();
-  return staged;
+  // Record the authenticated watermark in the same transaction as its page.
+  // Only finishApplied may advance contiguous coverage.
+  return receiver.stage(raw,{now:this.runtime.clock(),observeWatermark:true});
  }
  async advanceReconcileSnapshot(requestId){
   requireThat(uuid(requestId)&&child(this.runtime.app),'INVALID_SNAPSHOT_CONTINUATION',409);
@@ -306,8 +447,10 @@ class RuntimeServices{
   if(pendingEffect)await this.publishWork(pendingEffect.work_id,{budget:{remaining:1}});
   return receiver.finishApplied(snapshotId,{now:this.runtime.clock()});
  }
- async publishPending({limit=20}={}){
-  requireThat(safeInt(limit,1)&&limit<=20,'INVALID_PUBLICATION_PUMP',503);const works=await this.store.all("SELECT work_id FROM jwt_v2_worksets WHERE state='PENDING' ORDER BY created_at,work_id LIMIT ?",limit),budget={remaining:20};let applied=0;
+ async publishPending({limit=20,sessionLimit=20}={}){
+  requireThat(safeInt(limit,1)&&limit<=20&&safeInt(sessionLimit,1)&&sessionLimit<=20,'INVALID_PUBLICATION_PUMP',503);
+  const works=await this.store.all("SELECT work_id FROM jwt_v2_worksets WHERE state='PENDING' ORDER BY created_at,work_id LIMIT ?",limit),budget={remaining:sessionLimit};
+  let applied=0;
   for(const work of works){try{if(await this.publishWork(work.work_id,{budget}))applied++;}catch{/* Retry durable work later; never claim an unavailable target covered. */}}
   return {attempted:works.length,applied};
  }

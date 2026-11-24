@@ -64,9 +64,13 @@ export async function pinBootstrap(runtime,request,body){
   if(current&&['LOCKED','ADMITTED_LOCKED'].includes((await runtime.observeState(current.family)).state))credential=await runtime.native.credentialSnapshot(current.family.sub);
   else credential=await runtime.native.selection(body.loginId);
   requireThat(credential.active,'ACCOUNT_INACTIVE',401);
-  await runtime.store.stmt('INSERT INTO jwt_v2_accounts VALUES(?,?,1,0,1,1) ON CONFLICT(sub) DO NOTHING',credential.sub,credential.ce).run();
-  const account=await runtime.store.first('SELECT * FROM jwt_v2_accounts WHERE sub=?',credential.sub);
-  requireThat(account.ce===credential.ce&&account.active===1,'CREDENTIAL_RECONCILIATION_REQUIRED',503);
+  const store=runtime.store;
+  const results=await store.batch([
+   store.stmt('INSERT INTO jwt_v2_accounts VALUES(?,?,1,0,1,1) ON CONFLICT(sub) DO NOTHING',credential.sub,credential.ce),
+   store.stmt('SELECT * FROM jwt_v2_accounts WHERE sub=?',credential.sub)
+  ]);
+  const account=results.at(-2).results[0];
+  requireThat(account?.ce===credential.ce&&account.active===1,'CREDENTIAL_RECONCILIATION_REQUIRED',503);
   const expected=current?selector(JSON.parse(current.family.binding_json),runtime.app):null;
   transaction=await transactions.create({kind:body.purpose,sub:credential.sub,expected,expiresAt:Math.min(runtime.clock()+300,journey?.expires_at??Number.MAX_SAFE_INTEGER),payload:{ae:account.ae,ce:credential.ce,setupComplete:credential.setupComplete,mode:journey?'child':current&&['LOCKED','ADMITTED_LOCKED'].includes(current.family.state)?'unlock':'signin',journeyTx:journey?.tx||null}});
  }
@@ -177,11 +181,9 @@ export async function submitPIN(runtime,request,body,{setup=false}={}){
  const payload=JSON.parse(transaction.payload_json),pinTx=payload.journeyTx||transaction.tx;
  const ceremonies=await academyCeremonies(runtime);markPINRequest(request,{tx:pinTx,csrfHash:auth.csrfHash});
  requireThat(uuid(body.attemptId),'UNISSUED_PIN_ATTEMPT',403);
- const pending=await runtime.store.first("SELECT * FROM jwt_v2_ceremony_attempts WHERE tx=? AND attempt_id=?",pinTx,body.attemptId);
- requireThat(pending,'UNISSUED_PIN_ATTEMPT',403);
- const result=await ceremonies.verify({request,tx:pinTx,attemptId:pending.attempt_id,pin:body.pin,confirmation:body.confirmation,setup});
+ const result=await ceremonies.verify({request,tx:pinTx,attemptId:body.attemptId,pin:body.pin,confirmation:body.confirmation,setup});
  if(result.status!=='VERIFIED')return runtime.json({success:false,code:result.status,pausedUntilMs:(result.pausedUntil||0)*1000},result.status==='PIN_PAUSED'?429:401);
- const credential=await runtime.native.credentialSnapshot(transaction.sub),attempt=await runtime.store.first('SELECT * FROM jwt_v2_ceremony_attempts WHERE attempt_id=?',pending.attempt_id);
+ const credential=await runtime.native.credentialSnapshot(transaction.sub),attempt=await runtime.store.first('SELECT * FROM jwt_v2_ceremony_attempts WHERE attempt_id=?',body.attemptId);
  let current=null;try{current=await runtime.currentFamily(request);}catch(error){if(error.code!=='SESSION_ENDED')throw error;}
  if(current&&(['REVOKED','EXPIRED'].includes(current.family.state)||runtime.clock()>=current.family.s_exp))current=null;
  if(expected){requireThat(current,'OPERATION_SUPERSEDED',409);requireExpected(selector(JSON.parse(current.family.binding_json),runtime.app),expected);}else requireThat(!current,'OPERATION_SUPERSEDED',409);

@@ -286,7 +286,13 @@ test('a gap beyond the sign-in replay budget fails closed and recovers through s
   for(let i=0;i<5;i++){
    const account=await signIn(f);
    const boot=await f.post('academy','/auth/v2/bootstrap',{purpose:'logout',expectedContext:account.context});
-   const end=await f.post('academy','/auth/v2/logout',{operationId:boot.data.intent.id,expectedContext:account.context},boot.data);
+   const logout={operationId:boot.data.intent.id,expectedContext:account.context};
+   let end=await f.post('academy','/auth/v2/logout',logout,boot.data);
+   if(end.data.code==='LOGOUT_PUBLICATION_PENDING'){
+    assert.equal(end.response.status,503);
+    assert.equal(end.response.headers.getSetCookie().length,0);
+    end=await f.post('academy','/auth/v2/logout',logout,boot.data);
+   }
    assert.equal(end.response.status,200,end.data.code);
   }
   const fresh=await signIn(f);
@@ -303,5 +309,64 @@ test('a gap beyond the sign-in replay budget fails closed and recovers through s
    const session=await open(f,app);
    assert.equal(session.context.psid,fresh.context.psid);
   }
+ }finally{f.close();}
+});
+
+test('Studio scopes fresh Tafseer rights and loads an authorised Course on the same session',async()=>{
+ const f=await stage2Fixture();
+ try{
+  f.envs.studio.STUDIO_SCOPED_SESSION_RIGHTS='1';
+  const db=f.databases.studio;
+  for(const [offering,kind] of [['scoped-tafseer','TAFSEER'],['scoped-mothers','TAFSEER']]){
+   db.prepare("INSERT INTO offerings VALUES(?,?,?,1,1)").run(offering,kind,offering);
+   db.prepare("INSERT INTO source_access_scopes VALUES(?,'ACADEMY',1,1,1,1,'UTC','[]')").run(offering);
+   db.prepare("INSERT INTO source_access_people VALUES(?,?,1,1,?,1,'[]',1,0)").run(f.sub,offering,f.now()*1000);
+  }
+  db.prepare("INSERT INTO programme_offerings VALUES('mothers','scoped-mothers','MONTHLY')").run();
+  for(const offering of ['scoped-tafseer','scoped-mothers']){
+   db.prepare("INSERT INTO paid_months VALUES(?,?,'2026-11','native-class','Synthetic paid month')").run(f.sub,offering);
+  }
+  db.prepare("UPDATE participation SET enrolled=0,live=0,purchased=1 WHERE account_id=? AND offering_id='native-course'").run(f.sub);
+  for(const [asset,offering] of [['scope-paid','scoped-tafseer'],['scope-retained','native-course'],['scope-denied','scoped-tafseer'],['scope-mothers','scoped-mothers']]){
+   db.prepare("INSERT INTO objects VALUES(?,NULL,'video/mp4','Synthetic recording',0,'fixture',?)").run(asset,asset);
+   db.prepare("INSERT INTO attachments VALUES(?,?,NULL,?,'lesson',?,'native-class','Synthetic recording','RECORDING',1)").run(asset,offering,asset,asset==='scope-denied'?'2026-10-20':'2026-11-20');
+  }
+  const login=await signIn(f);
+  const entry=await open(f,'studio');
+  const req=()=>new Request(ORIGINS.studio+'/api/me',{headers:{Cookie:f.jar.header(ORIGINS.studio)}});
+  const runtime=f.runtimes.studio,initial=await runtime.authorise(req());
+  assert.equal(initial.binding.sid,entry.context.sid);
+  assert.equal(initial.rights.programme,'tafseer');
+  assert.deepEqual(initial.rights.scopes.map(row=>row.offering_id),['scoped-tafseer']);
+  assert.equal(initial.rights.nativeAuthority.tables.participation.rows.some(row=>row.offering_id==='native-course'),false);
+  const first=await f.request('studio','/api/media/scope-paid');
+  assert.equal(first.status,200,await first.clone().text());
+  const unknown=await f.request('studio','/api/media/scope-denied');
+  assert.ok([403,404].includes(unknown.status));
+  const verifier=opaque(),expectedContext=entry.context;
+  const start=await f.post('studio','/auth/v2/shared-entry/start',{expectedContext,destination:'courses',challenge:await s256(verifier)});
+  assert.equal(start.response.status,200,start.data.code);
+  const warm=await f.post('studio','/auth/v2/shared-entry',{tx:start.data.tx,operationId:start.data.operationId,expectedContext,verifier},start.data);
+  assert.equal(warm.response.status,200,warm.data.code);
+  assert.equal(warm.data.context.sid,entry.context.sid);
+  assert.equal(warm.response.headers.getSetCookie().length,0);
+  const retained=await f.request('studio','/api/media/scope-retained');
+  assert.equal(retained.status,200,await retained.clone().text());
+  assert.equal((await retained.json()).videoId,'scope-retained');
+  assert.equal((await f.request('studio','/api/media/scope-retained')).status,200);
+  const scope=await runtime.programmeCapability(await runtime.authorise(req()),'courses','native-course');
+  assert.equal(scope.binding.sid,entry.context.sid);
+  assert.equal(scope.rights.programme,'courses');
+  assert.deepEqual(scope.rights.scopes.map(row=>row.offering_id),['native-course']);
+  assert.equal((await runtime.authorise(req())).rights.programme,'tafseer');
+  assert.equal(warm.data.context.psid,login.context.psid);
+  const mothers=await f.request('studio','/api/media/scope-mothers');
+  assert.equal(mothers.status,200,await mothers.clone().text());
+  const loadedMothers=await runtime.programmeCapability(await runtime.authorise(req()),'mothers','scoped-mothers');
+  assert.deepEqual(loadedMothers.rights.scopes.map(row=>row.offering_id),['scoped-mothers']);
+  const [dependency]=runtime.settings.dependenciesFor(login.context.sub);
+  db.prepare('UPDATE jwt_v2_dependencies SET revision=revision+1 WHERE id=? AND scope=?').run(dependency.id,dependency.scope);
+  const prior=await runtime.authorise(req());
+  await assert.rejects(runtime.programmeCapability(prior,null),error=>error.code==='PERMISSIONS_REFRESH_REQUIRED');
  }finally{f.close();}
 });

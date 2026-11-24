@@ -51,11 +51,18 @@ export async function deliverOutbox(store,{sendAuthenticated,now,limit=20,jitter
  // One selected row per pass; the durable logical tick makes fairness work even
  // when limit=1, calls share a timestamp, or fresh rows arrive in a busy stream.
  while(selected<50&&attempted<limit){
-  const stream=await store.first("SELECT s.target_app,s.stream FROM jwt_v2_delivery_streams s WHERE EXISTS(SELECT 1 FROM jwt_v2_outbox o WHERE o.state='PENDING' AND o.target_app=s.target_app AND json_extract(o.event_json,'$.stream')=s.stream AND o.next_attempt_at<=?) ORDER BY s.last_selected_tick,s.target_app,s.stream LIMIT 1",now);
-  if(!stream)break;
+  // Unary plus preserves the registered TEXT value without imposing column
+  // affinity on the JSON expression. This lets the existing due index seek
+  // the stream and time together within the same fair stream selection.
+  const item=await store.first(
+   "SELECT item.*,s.stream AS selected_stream FROM jwt_v2_delivery_streams s INDEXED BY jwt_v2_delivery_fair "+
+   "CROSS JOIN jwt_v2_outbox item ON item.rowid=("+
+   "SELECT o.rowid FROM jwt_v2_outbox o INDEXED BY jwt_v2_outbox_due_stream WHERE o.state='PENDING' AND o.target_app=s.target_app "+
+   "AND json_extract(o.event_json,'$.stream')=+s.stream AND o.next_attempt_at<=? ORDER BY o.next_attempt_at,o.rowid LIMIT 1) "+
+   "ORDER BY s.last_selected_tick,s.target_app,s.stream LIMIT 1",now);
+  if(!item)break;
   selected++;
-  const item=await store.first("SELECT * FROM jwt_v2_outbox WHERE state='PENDING' AND target_app=? AND json_extract(event_json,'$.stream')=? AND next_attempt_at<=? ORDER BY next_attempt_at,rowid LIMIT 1",stream.target_app,stream.stream,now);
-  if(!item)continue;
+  const stream={target_app:item.target_app,stream:item.selected_stream};
   const event=freezeEvent(strictJSON(item.event_json));
   requireThat(event.eventId===item.event_id&&event.digest===item.digest&&event.env===store.env&&event.sourceApp==='academy'&&event.targetApp===stream.target_app&&event.stream===stream.stream,'OUTBOX_BINDING_CONFLICT',503);
   const attempt=item.attempts+1;

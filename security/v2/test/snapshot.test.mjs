@@ -18,17 +18,19 @@ function digestStreamFactory(){
 const request=()=>({schema:2,env:'production',sourceApp:'studio',targetApp:'academy',requestId:crypto.randomUUID(),ownerApp:'academy',recipientApp:'studio',stream:'account-security',ownerEpoch:epoch,contiguousThrough:0,missingRanges:[[1,7]],knownFloorsDigest:'0'.repeat(64),pageToken:null});
 const credential=(i=0)=>({type:'credentialEpoch',sub:'synthetic-'+String(i).padStart(5,'0'),newCe:i+1,reason:'ADMIN_PIN_RESET'});
 function db(app){const f=database(app);f.raw.exec(snapshotSchemaSQL);return {...f,snap:new SnapshotStore(f.store)};}
-async function source(records=[],{baseChanges={},recordConfig={},clockOverride=()=>now}={}){
- const f=db('academy'),req=request();latestIssuedRequest=req;const base={schema:2,env:'production',requestId:req.requestId,ownerApp:'academy',recipientApp:'studio',stream:'account-security',ownerEpoch:epoch,coveredThrough:7,predecessorEpoch:null,predecessorCoveredThrough:null,snapshotId:crypto.randomUUID(),createdAt:now,expiresAt:now+600,...baseChanges};
+async function source(records=[],{baseChanges={},recordConfig={},clockOverride=()=>now,prepareOnly=false,configOverride=config,requestOverride}={}){
+ const f=db('academy'),req=requestOverride??request();latestIssuedRequest=req;const base={schema:configOverride.snapshotSchema??2,env:'production',requestId:req.requestId,ownerApp:'academy',recipientApp:'studio',stream:'account-security',ownerEpoch:epoch,coveredThrough:7,predecessorEpoch:null,predecessorCoveredThrough:null,snapshotId:crypto.randomUUID(),createdAt:now,expiresAt:now+600,...baseChanges};
  f.raw.exec("CREATE TABLE isolated_capture_state(epoch TEXT,watermark INTEGER,pending INTEGER);INSERT INTO isolated_capture_state VALUES('owner-epoch',7,0);CREATE TABLE isolated_snapshot_facts(bucket TEXT,record_json TEXT);");
  for(const entry of records)f.raw.prepare('INSERT INTO isolated_snapshot_facts VALUES(?,?)').run(entry.bucket,canonical(entry.record));
- const selectors=BUCKETS.filter(b=>b!=='localCutoffs').map(bucket=>({bucket,sql:'SELECT record_json FROM isolated_snapshot_facts WHERE bucket=?',args:[bucket]}));
+ const buckets=configOverride.snapshotSchema===4?[...BUCKETS,'accountBaselines']:BUCKETS;
+ const selectors=buckets.filter(b=>b!=='localCutoffs').map(bucket=>({bucket,sql:'SELECT record_json FROM isolated_snapshot_facts WHERE bucket=?',args:[bucket]}));
  const guard={sql:"SELECT 1 FROM isolated_capture_state WHERE epoch='owner-epoch' AND watermark=7 AND pending=0",args:[]};
- const id=await f.snap.capturePrimary({request:req,base,cursorKeyId,selectors,guard,config,now});
- const built=await buildSnapshot({store:f.snap,snapshotId:id,cursorKey,cursorKeyId,config,recordConfig,now,digestStreamFactory,clock:clockOverride});
+ const id=await f.snap.capturePrimary({request:req,base,cursorKeyId,selectors,guard,config:configOverride,now});
+ if(prepareOnly)return {...f,req,base,id,selectors,guard,recordConfig};
+ const built=await buildSnapshot({store:f.snap,snapshotId:id,cursorKey,cursorKeyId,config:configOverride,recordConfig,now,digestStreamFactory,clock:clockOverride});
  const pages=[];let pageToken=null;
  for(let i=0;i<built.metadata.pageCount;i++){
-  const raw=await serveSnapshotPage({store:f.snap,request:{...req,pageToken},config,cursorKey,cursorKeyId,now});pages.push(strictJSON(raw));pageToken=pages.at(-1).nextPageToken;
+  const raw=await serveSnapshotPage({store:f.snap,request:{...req,pageToken},config:configOverride,cursorKey,cursorKeyId,now});pages.push(strictJSON(raw));pageToken=pages.at(-1).nextPageToken;
  }
  return {...f,req,base,id,built,pages,selectors,guard,recordConfig};
 }
@@ -303,4 +305,81 @@ test('concurrent immutable request registration and identical page retries are i
  const results=await Promise.all(Array.from({length:5},()=>r.receiver.stage(canonical(f.pages[0]),{now})));
  assert(results.every(x=>x.status==='VERIFIED'));assert.equal(r.raw.prepare('SELECT count(*) n FROM jwt_v2_receive_snapshots').get().n,1);
  assert.equal(r.raw.prepare('SELECT count(*) n FROM jwt_v2_receive_records').get().n,1);
+});
+
+test('bounded snapshot steps recover normalisation and page signing across store restarts',async()=>{
+ const input=Array.from({length:341},(_,i)=>({bucket:'credentialFloors',record:credential(i)}));
+ const f=await source(input,{prepareOnly:true});
+ try{
+  const args={snapshotId:f.id,cursorKey,cursorKeyId,config,now,digestStreamFactory,clock:()=>now,step:true};
+  const states=[],callsByStep=[];
+  let result;
+  for(let step=0;step<12;step++){
+   let calls=0;
+   const primary={
+    first(...args){calls++;return f.store.first(...args);},
+    all(...args){calls++;return f.store.all(...args);},
+    batch(statements){calls++;return f.store.batch(statements);},
+    stmt(...args){
+     const statement=f.store.stmt(...args),run=statement.run.bind(statement);
+     statement.run=(...params)=>{calls++;return run(...params);};
+     return statement;
+    }
+   };
+   const store=new SnapshotStore(primary);
+   result=await buildSnapshot({store,...args});
+   assert.ok(calls<50,'Build step must preserve D1 headroom');
+   callsByStep.push(calls);
+   if(!result.pending)break;
+   states.push(result.pending);
+   await assert.rejects(serveSnapshotPage({store,request:f.req,config,cursorKey,cursorKeyId,now}),/SNAPSHOT_CAPTURE_UNAVAILABLE/);
+  }
+  assert.deepEqual(states,['NORMALISING','NORMALISING','NORMALISING','NORMALISING','ASSEMBLING','ASSEMBLING','SIGNING','SIGNING']);
+  assert.equal(result.metadata.totalRecords,input.length);
+  assert.equal(result.metadata.pageCount,18);
+  const check=receiver({pendingRequest:f.req});
+  try{
+   let pageToken=null,verified;
+   for(let i=0;i<result.metadata.pageCount;i++){
+    const raw=await serveSnapshotPage({store:new SnapshotStore(f.store),request:{...f.req,pageToken},config,cursorKey,cursorKeyId,now});
+    pageToken=JSON.parse(raw).nextPageToken;
+    verified=await check.receiver.stage(raw,{now});
+   }
+   assert.equal(pageToken,null);
+   assert.equal(verified.status,'VERIFIED');
+  }finally{check.raw.close();}
+  const again=await buildSnapshot({store:new SnapshotStore(f.store),...args});
+  assert.deepEqual(again,result);
+  console.log('Isolated source build fixture',JSON.stringify({records:input.length,callsByStep,states,pages:result.metadata.pageCount}));
+ }finally{f.raw.close();}
+});
+
+test('bounded schema-4 signing matches every page byte across an epoch bridge',async()=>{
+ const bridgeEpoch='owner-epoch-next',schema4={...config,snapshotSchema:4};
+ const req=request(),snapshotId=crypto.randomUUID();
+ const recordConfig={recognisedEpochs:new Set([epoch,bridgeEpoch])};
+ const input=Array.from({length:141},(_,i)=>({bucket:'credentialFloors',record:credential(i)}));
+ for(const ownerEpoch of recordConfig.recognisedEpochs)input.push({bucket:'policies',record:{
+  type:'policy',policyId:'session-inactivity',ownerEpoch,revision:1,inactivityMinutes:90
+ }});
+ input.push({bucket:'accountBaselines',record:{type:'accountBaseline',sub:'synthetic-baseline',ce:2,ae:4}});
+ const opts={configOverride:schema4,requestOverride:req,recordConfig,
+  baseChanges:{snapshotId,ownerEpoch:bridgeEpoch,predecessorEpoch:epoch,predecessorCoveredThrough:7}};
+ const normal=await source(input,opts),bounded=await source(input,{...opts,prepareOnly:true});
+ try{
+  let output;
+  for(let calls=0;calls<8;calls++){
+   output=await buildSnapshot({store:new SnapshotStore(bounded.store),snapshotId,config:schema4,
+    cursorKey,cursorKeyId,recordConfig,now,digestStreamFactory,clock:()=>now,step:true});
+   if(!output.pending)break;
+  }
+  assert.deepEqual(output,normal.built);
+  let pageToken=null;
+  for(const expected of normal.pages){
+   const wire=await serveSnapshotPage({store:bounded.snap,request:{...req,pageToken},config:schema4,cursorKey,cursorKeyId,now});
+   assert.equal(wire,canonical(expected));
+   pageToken=expected.nextPageToken;
+  }
+  assert.equal(pageToken,null);
+ }finally{normal.raw.close();bounded.raw.close();}
 });

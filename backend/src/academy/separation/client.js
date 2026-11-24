@@ -1,3 +1,4 @@
+import {splitCoordinatorName} from './coordinator-binding.js';
 import {nativeAuthContext} from '../v111/native-context.js';
 import {buildCoordinatorProof} from '../v111/coordinator-proof.mjs';
 import {federatedDatabase,federationContext,rewriteRead} from './federation.js';
@@ -16,7 +17,7 @@ export function needsOwnerPlan(statements){return statements.some(s=>{
 });}
 export function splitClient(env,core,admin){
  const namespace=env.ACADEMY_SPLIT_COORDINATOR;if(!namespace?.getByName)fail();let proof=null,auth=null;
- const rpc=async(method,...args)=>{if(env.UAA_V2_ENABLED==='1'){if(!auth||!nativeAuthContext(auth))fail();args[0]=args[0].map(s=>({sql:s.sql,params:s.params,...(method==='read'?{acceptedScope:s.acceptedScope??null,recordedContextScope:s.recordedContextScope??null,lessonContextRead:s.lessonContextRead??null}:{})}));args[1]=await buildCoordinatorProof(auth,{command:method,input:{statements:args[0],owner:method==='read'?(args[2]||'admin'):null}});}const result=await namespace.getByName('academy:SPLIT_V1:'+env.ACADEMY_D1_RUN_ID)[method](...args);if(result.error)throw Object.assign(Error(result.error.message),result.error);return result.result;};
+ const rpc=async(method,...args)=>{if(env.UAA_V2_ENABLED==='1'){if(!auth||!nativeAuthContext(auth))fail();args[0]=args[0].map(s=>({sql:s.sql,params:s.params,...(method==='read'?{acceptedScope:s.acceptedScope??null,recordedContextScope:s.recordedContextScope??null,lessonContextRead:s.lessonContextRead??null}:{})}));args[1]=await buildCoordinatorProof(auth,{command:method,input:{statements:args[0],owner:method==='read'?(args[2]||'admin'):null}});}const result=await namespace.getByName(splitCoordinatorName(env.ACADEMY_D1_RUN_ID))[method](...args);if(result.error)throw Object.assign(Error(result.error.message),result.error);return result.result;};
  async function mutate(statements){
   if(env.UAA_V2_ENABLED==='1'||needsOwnerPlan(statements))return rpc('write',statements,proof);
   // Core-only work retains its ordinary D1 transaction. Core triggers reject

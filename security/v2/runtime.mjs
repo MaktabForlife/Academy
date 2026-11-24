@@ -11,7 +11,7 @@ import {issueToken,readCookies,cookiePair,refreshOnlyCookie,ACADEMY_SHARED_AUDIE
 import {academyCookiePairControl,requireAcademyCookiePair,SHARED_PAIR_MODE} from './academy-cookie-pair.mjs';
 import {privateJSON,browserBody,verifyBootstrap} from './browser-security.mjs';
 import {HTTPIntents,selector,expectedContext,requireExpected,decorateResponse} from './http-context.mjs';
-import {admissionFloorGuard,markSessionCovered,worksetApplied} from './publication.mjs';
+import {admissionFloorGuard,markSessionCovered,worksetApplied,isVoluntaryAccountCutoff,markLogoutSessionCovered} from './publication.mjs';
 
 const instances=new WeakMap(),capabilities=new WeakMap();
 const safeActions=new Set(['read','write','sensitive','media']);
@@ -115,6 +115,11 @@ export class AppRuntime {
    else {const {recoverRuntimeAuthority}=await import('./runtime-fallback.mjs');verified=await recoverRuntimeAuthority(this,{token:cookies.access,sid,resourceKeys,action,error});}
   }
   requireThat(this.clock()<Math.min(verified.deadline,verified.binding.s_exp),'LEASE_EXPIRED',401);
+  if(sharedAccess){
+   const {sub,ce,ae}=verified.binding;
+   requireThat(await this.store.first('SELECT 1 FROM jwt_v2_accounts WHERE sub=? AND ce=? AND ae=? AND active=1',sub,ce,ae),
+    'SESSION_ENDED',401);
+  }
   const context=selector(verified.binding,this.app),expected=expectedContext(request);
   if(expected)requireExpected(context,expected);
   const unsafe=!['GET','HEAD','OPTIONS'].includes(request.method);
@@ -154,9 +159,14 @@ export class AppRuntime {
    ...(this.app==='academy'?[this.store.stmt("UPDATE jwt_v2_parents SET state=? WHERE psid=? AND state IN('UNLOCKED','LOCKED')",state,family.psid)]:[]),clear]);
   await this.publishFamily(family.sid);return this.store.family(family.sid);
  }
- async publishPending(workId,{limit=-1}={}){
+ async publishPending(workId,{limit=-1,logoutTarget}={}){
+  if(logoutTarget!==undefined)requireThat(isVoluntaryAccountCutoff(logoutTarget),'INVALID_LOGOUT_TARGET',409);
   const rows=await this.store.all('SELECT sid FROM jwt_v2_publications WHERE work_id=? AND published_cr IS NULL AND covered_by_expiry=0 ORDER BY sid LIMIT ?',workId,limit);
-  for(const row of rows){const projection=await this.publishFamily(row.sid);await markSessionCovered(this.store,{workId,sid:row.sid,projection,controlKey:this.cache.key('security/session/'+row.sid),now:this.clock()});}
+  for(const row of rows){
+   const projection=await this.publishFamily(row.sid);
+   if(logoutTarget)await markLogoutSessionCovered(this.store,{workId,sid:row.sid,target:logoutTarget,projection,now:this.clock()});
+   else await markSessionCovered(this.store,{workId,sid:row.sid,projection,controlKey:this.cache.key('security/session/'+row.sid),now:this.clock()});
+  }
   return worksetApplied(this.store,workId);
  }
  async stateDTO(family,{purpose='refresh'}={}){
@@ -164,8 +174,9 @@ export class AppRuntime {
   const now=this.clock(),context=selector(parseBinding(family),this.app),terminal=['REVOKED','EXPIRED'].includes(family.state)||now>=family.s_exp;
   if(terminal)return {contractVersion:2,success:false,state:'ENDED',serverNowMs:now*1000,context:null};
   const state=family.state==='ADMITTED_LOCKED'?'ADMITTED_LOCKED':now>=family.idle_until||family.state!=='UNLOCKED'?'LOCKED':'UNLOCKED';
-  const auth=await this.intents.issue(family,purpose);
-  const business=state==='UNLOCKED'&&now<Math.min(family.deadline,family.idle_until,family.s_exp)?await this.intents.issue(family,'business'):null;
+  const canIssueBusiness=state==='UNLOCKED'&&now<Math.min(family.deadline,family.idle_until,family.s_exp);
+  const [auth,additional]=await this.intents.issueMany(family,canIssueBusiness&&purpose!=='business'?[purpose,'business']:[purpose]);
+  const business=canIssueBusiness?(purpose==='business'?auth:additional):null;
   return {contractVersion:2,success:true,serverNowMs:now*1000,state,authorityReady:Boolean(family.authority_ready),replacementRequired:state==='UNLOCKED'&&!family.authority_ready,context,expectedContext:context,env:this.config.env,draftGeneration:1,originalExpiresAtMs:family.s_exp*1000,idleUntilMs:family.idle_until*1000,validatedAtMs:family.vat*1000,validationDeadlineMs:family.deadline*1000,...auth,...(business?{csrfByPurpose:{business:business.csrf},businessIntent:business.intent}: {})};
  }
  async sharedAcademyCookieResponse(family,refresh,value){

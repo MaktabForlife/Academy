@@ -161,9 +161,18 @@ export async function signInReadiness(runtime,request,body) {
  // current cookie pair explicitly, independent of historical PIN attempt proof.
  const cap=await runtime.authorise(new Request(request.url,{headers:request.headers}));
  requireExpected(cap.context,expectedContext(request,body));
+ // A new authenticated holder can finish prior local logout publication after
+ // the old browser and its intent have gone. Keep this independent of child ACKs.
+ const priorLogout=await runtime.store.first(`SELECT o.operation_id FROM jwt_v2_worksets w
+  JOIN jwt_v2_operations o ON o.operation_id=w.work_id
+  WHERE o.sub=? AND o.kind='VOLUNTARY_LOGOUT' AND w.state='PENDING'
+   AND (CAST(json_extract(w.target_json,'$.maxCe') AS INTEGER)<?
+    OR (CAST(json_extract(w.target_json,'$.maxCe') AS INTEGER)=? AND CAST(json_extract(w.target_json,'$.maxAe') AS INTEGER)<?))
+  ORDER BY w.created_at,w.work_id LIMIT 1`,cap.context.sub,cap.context.ce,cap.context.ce,cap.context.ae);
+ const localReady=!priorLogout||await runtime.publishPending(priorLogout.operation_id,{limit:3});
  const results=await Promise.allSettled(recipients.map(app=>deliverRecipient(runtime,body.operationId,app,cap.context.sid)));
  const outcomes=results.map(result=>result.status==='fulfilled'?result.value:'PENDING');
- const readiness=Object.fromEntries(outcomes.map((outcome,i)=>[recipients[i],outcome.state??outcome]));
+ const readiness=Object.fromEntries(outcomes.map((outcome,i)=>[recipients[i],localReady?(outcome.state??outcome):'PENDING']));
  const retryAfterMs=Math.min(leaseSeconds*1000,Math.max(0,...outcomes.map(outcome=>outcome.retryAfterMs??0)));
  return runtime.json({success:true,operationId:body.operationId,readiness,retryAfterMs},200,cap);
 }

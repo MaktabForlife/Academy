@@ -9,6 +9,84 @@ const TYPES={accountBaselines:'accountBaseline',accountCutoffs:'accountCutoff',c
 const FIELDS={accountBaseline:'type sub ce ae',accountCutoff:'type sub maxCe maxAe reason incidentId',credentialEpoch:'type sub newCe reason',parent:'type sub psid bsid bv ce ae',browser:'type bsid maxBv',key:'type purpose kid registryRevision',policy:'type policyId ownerEpoch revision inactivityMinutes',dependency:'type id ownerEpoch revision effect deniedActions'};
 const HEX=/^[0-9a-f]{64}$/;
 const q=()=>crypto.randomUUID();
+export const snapshotBuildLimits=Object.freeze({records:180, history:800, epochs:4, pages:10,
+ bytes:524288, digestReads:16, digestMs:5000});
+export const steppedBuildProtocol='stepped-v1';
+export const buildPhases=Object.freeze(['HISTORY','NORMALISING','ASSEMBLING','DIGEST','SIGNING','BLOCKED']);
+export const receiveBuildSchemaSQL=`CREATE TABLE IF NOT EXISTS jwt_v2_snapshot_build_receipts(
+ request_id TEXT PRIMARY KEY REFERENCES jwt_v2_receive_requests(request_id),
+ base_json TEXT NOT NULL,request_digest TEXT NOT NULL,
+ phase INTEGER NOT NULL CHECK(phase BETWEEN 0 AND 5),
+ cursor INTEGER NOT NULL CHECK(cursor>=0)
+);
+CREATE TRIGGER IF NOT EXISTS jwt_v2_snapshot_build_receipt_monotonic
+BEFORE UPDATE ON jwt_v2_snapshot_build_receipts
+WHEN OLD.request_id<>NEW.request_id OR OLD.base_json<>NEW.base_json OR OLD.request_digest<>NEW.request_digest
+ OR OLD.phase>NEW.phase OR (OLD.phase=NEW.phase AND OLD.cursor>NEW.cursor)
+BEGIN SELECT RAISE(ABORT,'snapshot_build_receipt_immutable'); END;
+CREATE TABLE IF NOT EXISTS jwt_v2_snapshot_receive_slots(
+ request_id TEXT PRIMARY KEY REFERENCES jwt_v2_receive_requests(request_id),
+ snapshot_id TEXT NOT NULL UNIQUE REFERENCES jwt_v2_receive_snapshots(snapshot_id),
+ stream TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS jwt_v2_snapshot_receive_slots_by_stream
+ ON jwt_v2_snapshot_receive_slots(stream);
+CREATE TABLE IF NOT EXISTS jwt_v2_snapshot_receive_retirements(
+ request_id TEXT PRIMARY KEY REFERENCES jwt_v2_receive_requests(request_id),
+ snapshot_id TEXT NOT NULL,retired_at INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS jwt_v2_snapshot_receive_slot_immutable
+ BEFORE UPDATE ON jwt_v2_snapshot_receive_slots
+ BEGIN SELECT RAISE(ABORT,'snapshot_receive_slot_immutable'); END;
+CREATE TRIGGER IF NOT EXISTS jwt_v2_snapshot_receive_slot_live
+ BEFORE DELETE ON jwt_v2_snapshot_receive_slots WHEN NOT EXISTS(
+  SELECT 1 FROM jwt_v2_snapshot_receive_retirements WHERE request_id=OLD.request_id)
+ BEGIN SELECT RAISE(ABORT,'snapshot_receive_slot_live'); END;
+CREATE TRIGGER IF NOT EXISTS jwt_v2_snapshot_receive_retirement_immutable
+ BEFORE UPDATE ON jwt_v2_snapshot_receive_retirements
+ BEGIN SELECT RAISE(ABORT,'snapshot_receive_retirement_immutable'); END;
+CREATE TRIGGER IF NOT EXISTS jwt_v2_snapshot_receive_retirement_retained
+ BEFORE DELETE ON jwt_v2_snapshot_receive_retirements
+ BEGIN SELECT RAISE(ABORT,'snapshot_receive_retirement_retained'); END;
+CREATE TRIGGER IF NOT EXISTS jwt_v2_snapshot_receive_page_live
+ BEFORE DELETE ON jwt_v2_receive_pages WHEN EXISTS(
+ SELECT 1 FROM jwt_v2_snapshot_receive_slots z WHERE z.snapshot_id=OLD.snapshot_id AND NOT EXISTS(
+  SELECT 1 FROM jwt_v2_snapshot_receive_retirements r WHERE r.request_id=z.request_id))
+ BEGIN SELECT RAISE(ABORT,'snapshot_receive_page_live'); END;
+CREATE TRIGGER IF NOT EXISTS jwt_v2_snapshot_receive_record_live
+ BEFORE DELETE ON jwt_v2_receive_records WHEN EXISTS(
+ SELECT 1 FROM jwt_v2_snapshot_receive_slots z WHERE z.snapshot_id=OLD.snapshot_id AND NOT EXISTS(
+  SELECT 1 FROM jwt_v2_snapshot_receive_retirements r WHERE r.request_id=z.request_id))
+ BEGIN SELECT RAISE(ABORT,'snapshot_receive_record_live'); END;`;
+
+export async function retireReceivedSnapshot(runtime,requestId){
+ requireThat(['studio','hifz'].includes(runtime.app)&&uuid(requestId),'INVALID_SNAPSHOT_RETIREMENT',400);
+ const store=runtime.store;
+ const retired=async()=>{
+  const row=await store.first('SELECT snapshot_id,retired_at FROM jwt_v2_snapshot_receive_retirements WHERE request_id=?',requestId);
+  return row?{snapshotId:row.snapshot_id,retiredAt:row.retired_at}:null;
+ };
+ const existing=await retired();
+ if(existing)return existing;
+ const scope=`FROM jwt_v2_receive_requests r LEFT JOIN jwt_v2_snapshot_build_receipts b USING(request_id)
+  LEFT JOIN jwt_v2_receive_snapshots s USING(request_id)
+  WHERE r.request_id=? AND json_extract(r.request_json,'$.buildProtocol')=?
+   AND json_extract(coalesce(b.base_json,s.metadata_json),'$.expiresAt')<=unixepoch()`;
+ const snapshot="json_extract(coalesce(b.base_json,s.metadata_json),'$.snapshotId')";
+ const now=await store.first('SELECT '+snapshot+' snapshot_id '+scope,requestId,steppedBuildProtocol);
+ requireThat(now?.snapshot_id,'SNAPSHOT_BUILD_STILL_LIVE',409);
+ const id=now.snapshot_id;
+ const [guard,clear]=store.guard('SELECT 1 '+scope+' AND '+snapshot+'=?',[requestId,steppedBuildProtocol,id]);
+ await store.batch([guard,
+  store.stmt('INSERT INTO jwt_v2_snapshot_receive_retirements VALUES(?,?,unixepoch()) ON CONFLICT(request_id) DO NOTHING',requestId,id),
+  store.stmt("UPDATE jwt_v2_receive_requests SET status='CANCELLED' WHERE request_id=? AND status='PENDING'",requestId),
+  store.stmt('DELETE FROM jwt_v2_receive_pages WHERE snapshot_id=?',id),
+  store.stmt('DELETE FROM jwt_v2_receive_records WHERE snapshot_id=?',id),
+  store.stmt('DELETE FROM jwt_v2_snapshot_receive_slots WHERE request_id=? AND snapshot_id=?',requestId,id),
+  clear]);
+ return retired();
+}
+
 export function snapshotContract(config){const version=config?.snapshotSchema??2;requireThat(version===2||version===3||version===4,'UNSUPPORTED_SNAPSHOT_SCHEMA',409);return version;}
 const baselineBuckets=Object.freeze([...BUCKETS,'accountBaselines']);
 const snapshotBuckets=schema=>schema===4?baselineBuckets:BUCKETS;
@@ -42,7 +120,10 @@ export const snapshotSchemaSQL=[
 ].join('\n');
 
 export function validateReconcileRequest(value,config){
- exact(value,REQUEST);
+ const stepped=Object.hasOwn(value??{},'buildProtocol');
+ exact(value,stepped?[...REQUEST,'buildProtocol']:REQUEST);
+ if(stepped)requireThat(value.buildProtocol===steppedBuildProtocol&&config.snapshotSchema===4
+  &&Array.isArray(value.missingRanges)&&value.missingRanges.length===0,'INVALID_SNAPSHOT_BUILD_PROTOCOL',409);
  requireThat(value.schema===2&&value.env===config.env&&value.ownerApp==='academy'&&['studio','hifz'].includes(value.recipientApp)&&value.recipientApp===config.recipientApp&&value.sourceApp===value.recipientApp&&value.targetApp==='academy'&&uuid(value.requestId)&&ascii(value.stream),'INVALID_RECONCILE_REQUEST',400);
  requireThat(value.ownerEpoch===null||ascii(value.ownerEpoch),'INVALID_OWNER_EPOCH',400);
  requireThat(safeInt(value.contiguousThrough)&&Array.isArray(value.missingRanges)&&value.missingRanges.length<=20,'INVALID_MISSING_RANGES',400);
@@ -145,7 +226,7 @@ export class SnapshotStore {
  all(sql,...args){return this.primary.all(sql,...args);}
  batch(items){return this.primary.batch(items);}
  guard(sql,args=[]){const id=q();return [this.stmt('INSERT INTO jwt_v2_reconcile_guards VALUES(?,EXISTS('+sql+'))',id,...args),this.stmt('DELETE FROM jwt_v2_reconcile_guards WHERE id=?',id)];}
- async capturePrimary({request,base,cursorKeyId,selectors,guard,config,now}){
+ async capturePrimary({request,base,cursorKeyId,selectors,guard,config,now,captureSource}){
   validateReconcileRequest(request,config);validateBase(base,config,now);
   requireThat(base.requestId===request.requestId&&base.env===request.env&&base.stream===request.stream&&base.ownerApp===request.ownerApp&&base.recipientApp===request.recipientApp&&request.pageToken===null&&ascii(cursorKeyId,64),'CAPTURE_BINDING_CONFLICT',409);
   const prior=await this.first('SELECT * FROM jwt_v2_reconcile_captures WHERE request_id=?',request.requestId);
@@ -155,35 +236,31 @@ export class SnapshotStore {
   requireThat(guard&&typeof guard.sql==='string'&&Array.isArray(guard.args)&&Array.isArray(selectors),'OWNING_CAPTURE_GUARD_REQUIRED',503);
   const [g,clear]=this.guard(guard.sql,guard.args);
   const parts=selectors.map(s=>{requireThat(snapshotBuckets(base.schema).includes(s.bucket)&&s.bucket!=='localCutoffs'&&typeof s.sql==='string'&&Array.isArray(s.args),'INVALID_CAPTURE_SELECTOR',503);return this.stmt('INSERT INTO jwt_v2_reconcile_records(snapshot_id,bucket,raw_json) SELECT ?,?,record_json FROM ('+s.sql+')',base.snapshotId,s.bucket,...s.args);});
-  try{await this.batch([g,this.stmt("INSERT INTO jwt_v2_reconcile_captures(snapshot_id,request_id,request_binding,base_json,cursor_key_id,status) VALUES(?,?,?,?,?,'CAPTURING')",base.snapshotId,request.requestId,requestBinding(request),canonical(base),cursorKeyId),...parts,this.stmt("UPDATE jwt_v2_reconcile_captures SET status='CAPTURED' WHERE snapshot_id=?",base.snapshotId),clear]);}
+  try{await this.batch([g,this.stmt("INSERT INTO jwt_v2_reconcile_captures(snapshot_id,request_id,request_binding,base_json,cursor_key_id,status) VALUES(?,?,?,?,?,'CAPTURING')",base.snapshotId,request.requestId,requestBinding(request),canonical(base),cursorKeyId),...parts,...(captureSource?.(this)||[]),this.stmt("UPDATE jwt_v2_reconcile_captures SET status='CAPTURED' WHERE snapshot_id=?",base.snapshotId),clear]);}
   catch(error){const raced=await this.first('SELECT * FROM jwt_v2_reconcile_captures WHERE request_id=?',request.requestId);if(!raced)throw error;requireThat(raced.request_binding===requestBinding(request),'RECONCILE_REQUEST_CONFLICT',409);requireThat(now<strictJSON(raced.base_json).expiresAt,'SNAPSHOT_EXPIRED_OR_INVALID',409);return raced.snapshot_id;}
   return base.snapshotId;
  }
- async *recordRows(snapshotId,bucket,{receiver=false}={}){
+ async *recordRows(snapshotId,bucket,{receiver=false,after=null}={}){
   if(receiver){
    let offset=-1;
    for(;;){const rows=await this.all('SELECT record_offset,record_json FROM jwt_v2_receive_records WHERE snapshot_id=? AND bucket=? AND record_offset>? ORDER BY record_offset LIMIT 20',snapshotId,bucket,offset);if(!rows.length)return;for(const r of rows){offset=r.record_offset;yield r.record_json;}}
   }else{
-   let previous=null;
+   let previous=after;
    for(;;){const rows=await this.all('SELECT canonical_json FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND bucket=? AND canonical_json IS NOT NULL AND (? IS NULL OR CAST(canonical_json AS BLOB)>CAST(? AS BLOB)) ORDER BY CAST(canonical_json AS BLOB) LIMIT 20',snapshotId,bucket,previous,previous);if(!rows.length)return;for(const r of rows){previous=r.canonical_json;yield r.canonical_json;}if(rows.length<20)return;}
   }
  }
- async *orderedRecords(snapshotId,schema,counts){
+ async *orderedRecords(snapshotId,schema,counts,after=null){
   for(const bucket of snapshotBuckets(schema)){
-   if(!counts[bucket])continue;
-   for await(const json of this.recordRows(snapshotId,bucket))yield {bucket,record:strictJSON(json),json};
+   if(!counts[bucket]||after&&bucketIndex(bucket)<bucketIndex(after.bucket))continue;
+   for await(const json of this.recordRows(snapshotId,bucket,{after:bucket===after?.bucket?canonical(after.record):null}))yield {bucket,record:strictJSON(json),json};
   }
  }
 }
 
-export async function buildSnapshot({store,snapshotId,cursorKey,cursorKeyId,config,recordConfig={},now,digestStreamFactory,clock=()=>Math.floor(Date.now()/1000)}){
- const capture=await store.first('SELECT * FROM jwt_v2_reconcile_captures WHERE snapshot_id=?',snapshotId);requireThat(capture,'SNAPSHOT_CAPTURE_MISSING',409);
- const base=strictJSON(capture.base_json);validateBase(base,config,now);requireThat(capture.cursor_key_id===cursorKeyId,'CURSOR_KEY_CONFLICT',409);
- if(capture.status==='READY'){const metadata=strictJSON(capture.metadata_json);validateMetadata(metadata,config,Math.max(now,clock()));return {metadata,snapshotDigest:capture.snapshot_digest};}
- requireThat(['CAPTURED','BUILDING'].includes(capture.status),'SNAPSHOT_CAPTURE_INCOMPLETE',409);
+async function prepareSnapshotParts({store,snapshotId,base,config,recordConfig,now,digestStreamFactory,step,source}){
  let ordinal=0;
- for(;;){
-  const rows=await store.all('SELECT ordinal,bucket,CASE WHEN length(CAST(raw_json AS BLOB))<=61440 THEN raw_json ELSE NULL END raw_json,canonical_json,semantic_key FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND ordinal>? ORDER BY ordinal LIMIT 20',snapshotId,ordinal);
+ for(let batch=0;!step||batch<4;batch++){
+  const rows=await store.all('SELECT ordinal,bucket,CASE WHEN length(CAST(raw_json AS BLOB))<=61440 THEN raw_json ELSE NULL END raw_json,canonical_json,semantic_key FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND ordinal>? AND bucket<>?'+(step?' AND canonical_json IS NULL':'')+' ORDER BY ordinal LIMIT 20',snapshotId,ordinal,'sourceHistory');
   const statements=[],clears=[];
   for(const row of rows){
    ordinal=row.ordinal;requireThat(row.raw_json!==null,'SNAPSHOT_RECORD_TOO_LARGE',503);
@@ -198,19 +275,35 @@ export async function buildSnapshot({store,snapshotId,cursorKey,cursorKeyId,conf
    statements.push(guard);clears.push(clear);
   }
   if(statements.length){
-   try{await store.batch([...statements,...clears]);}
+   try{await (source?.commit??store.batch.bind(store))([...statements,...clears]);}
    catch(error){reject('DUPLICATE_OR_CONFLICTING_SNAPSHOT_FACT',409);}
   }
   if(rows.length<20)break;
+  if(step&&batch===3)return {pending:'NORMALISING',cursor:ordinal};
  }
  const present=Object.fromEntries((await store.all(
-  'SELECT bucket,count(*) AS records FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND canonical_json IS NOT NULL GROUP BY bucket',snapshotId
+  'SELECT bucket,count(*) AS records FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND canonical_json IS NOT NULL AND bucket<>? GROUP BY bucket',snapshotId,'sourceHistory'
  )).map(row=>[row.bucket,row.records]));
  const counts=Object.fromEntries(snapshotBuckets(base.schema).map(b=>[b,0]));let entries=[],offset=0,pageIndex=0;
+ let after=null;
+ if(step){
+  Object.assign(counts,present);
+  const tail=await store.first(`SELECT p.page_index,p.record_offset,p.entries_json,
+   (SELECT count(*) FROM jwt_v2_reconcile_parts other WHERE other.snapshot_id=p.snapshot_id) AS part_count
+   FROM jwt_v2_reconcile_parts p WHERE p.snapshot_id=? ORDER BY p.page_index DESC LIMIT 1`,snapshotId);
+  if(tail){
+   const prior=strictJSON(tail.entries_json);
+   requireThat(Array.isArray(prior)&&tail.part_count===tail.page_index+1&&prior.length<=20,'SNAPSHOT_PART_PREFIX_CONFLICT',409);
+   after=prior.at(-1)??null;
+   offset=tail.record_offset+prior.length;pageIndex=tail.page_index+1;
+   requireThat(offset<=Object.values(counts).reduce((sum,count)=>sum+count,0),'SNAPSHOT_PART_PREFIX_CONFLICT',409);
+  }
+ }
+ const stop=step?pageIndex+8:Infinity;
  const parts=[];
  async function flushParts(){
   if(!parts.length)return;
-  try{await store.batch(parts.splice(0));}
+  try{await (source?.commit??store.batch.bind(store))(parts.splice(0));}
   catch{reject('SNAPSHOT_PART_CONFLICT',409);}
  }
  async function flush(){
@@ -222,18 +315,87 @@ export async function buildSnapshot({store,snapshotId,cursorKey,cursorKeyId,conf
   if(parts.length===24)await flushParts();
   offset+=entries.length;pageIndex++;entries=[];
  }
- for await(const entry of store.orderedRecords(snapshotId,base.schema,present)){
+ for await(const entry of store.orderedRecords(snapshotId,base.schema,present,after)){
   const wire={bucket:entry.bucket,record:entry.record};
-  if(entries.length&&(entries.length===20||bytes(canonical([...entries,wire])).length>61440))await flush();
-  entries.push(wire);counts[entry.bucket]++;requireThat(safeInt(counts[entry.bucket]),'SNAPSHOT_COUNT_OVERFLOW',503);
+  if(entries.length&&(entries.length===20||bytes(canonical([...entries,wire])).length>61440)){
+   await flush();
+   if(pageIndex===stop){await flushParts();return {pending:'ASSEMBLING',cursor:pageIndex};}
+  }
+  entries.push(wire);
+  if(!step){counts[entry.bucket]++;requireThat(safeInt(counts[entry.bucket]),'SNAPSHOT_COUNT_OVERFLOW',503);}
  }
  if(entries.length||pageIndex===0)await flush();
  await flushParts();
  const metadata={...base,totalRecords:offset,bucketCounts:counts,pageCount:pageIndex};validateMetadata(metadata,config,now);
+ if(source){
+  if(metadata.pageCount>snapshotBuildLimits.pages)return {pending:'BLOCKED',cursor:0};
+  await source.commit([store.stmt("UPDATE jwt_v2_reconcile_captures SET status='BUILDING',metadata_json=? WHERE snapshot_id=? AND status IN('CAPTURED','BUILDING')",canonical(metadata),snapshotId)]);
+  return {pending:'DIGEST',cursor:0};
+ }
  const snapshotDigest=await streamingSnapshotDigest(metadata,b=>present[b]?store.recordRows(snapshotId,b):[],{digestStreamFactory});
  await store.stmt("UPDATE jwt_v2_reconcile_captures SET status='BUILDING',metadata_json=?,snapshot_digest=? WHERE snapshot_id=? AND status IN('CAPTURED','BUILDING')",canonical(metadata),snapshotDigest,snapshotId).run();
+ return {metadata,snapshotDigest};
+}
+
+export async function buildSnapshot({store,snapshotId,cursorKey,cursorKeyId,config,recordConfig={},now,digestStreamFactory,step=false,source=null,clock=()=>Math.floor(Date.now()/1000)}){
+ requireThat(typeof step==='boolean','INVALID_SNAPSHOT_BUILD_STEP',503);
+ const capture=await store.first('SELECT * FROM jwt_v2_reconcile_captures WHERE snapshot_id=?',snapshotId);requireThat(capture,'SNAPSHOT_CAPTURE_MISSING',409);
+ const base=strictJSON(capture.base_json);validateBase(base,config,now);requireThat(capture.cursor_key_id===cursorKeyId,'CURSOR_KEY_CONFLICT',409);
+ if(capture.status==='READY'){const metadata=strictJSON(capture.metadata_json);validateMetadata(metadata,config,Math.max(now,clock()));return {metadata,snapshotDigest:capture.snapshot_digest};}
+ requireThat(['CAPTURED','BUILDING'].includes(capture.status),'SNAPSHOT_CAPTURE_INCOMPLETE',409);
+ let metadata,snapshotDigest;
+ if(step&&capture.status==='BUILDING'){
+  metadata=strictJSON(capture.metadata_json);
+  validateMetadata(metadata,config,now);
+  requireThat(canonical(pick(metadata,BASE))===capture.base_json&&(source&&capture.snapshot_digest===null||HEX.test(capture.snapshot_digest)),'SNAPSHOT_CAPTURE_CONFLICT',409);
+  if(source&&capture.snapshot_digest===null){
+   const digestBytes=await store.first(`SELECT coalesce(sum(length(CAST(canonical_json AS BLOB))),0) n
+    FROM jwt_v2_reconcile_records WHERE snapshot_id=? AND bucket<>?`,snapshotId,'sourceHistory');
+   const digestReads=Object.values(metadata.bucketCounts).reduce((n,c)=>n+(c?Math.floor(c/20)+1:0),0);
+   if(metadata.totalRecords>snapshotBuildLimits.records||digestBytes.n>snapshotBuildLimits.bytes
+    ||digestReads>snapshotBuildLimits.digestReads)return {pending:'BLOCKED',snapshotId,cursor:0};
+   const start=performance.now();
+   async function* sourceRecords(bucket){
+    if(!metadata.bucketCounts[bucket])return;
+    for await(const row of store.recordRows(snapshotId,bucket)){
+     requireThat(performance.now()-start<snapshotBuildLimits.digestMs,'SNAPSHOT_DIGEST_TIME_LIMIT',503);
+     yield row;
+    }
+   }
+   const value=await streamingSnapshotDigest(metadata,sourceRecords,{digestStreamFactory});
+   requireThat(performance.now()-start<snapshotBuildLimits.digestMs,'SNAPSHOT_DIGEST_TIME_LIMIT',503);
+   await source.commit([store.stmt("UPDATE jwt_v2_reconcile_captures SET snapshot_digest=? WHERE snapshot_id=? AND metadata_json=? AND status='BUILDING' AND snapshot_digest IS NULL",value,snapshotId,canonical(metadata))]);
+   return {pending:'SIGNING',snapshotId,cursor:0};
+  }
+  snapshotDigest=capture.snapshot_digest;
+ }else{
+  const prepared=await prepareSnapshotParts({store,snapshotId,base,config,recordConfig,now,digestStreamFactory,step,source});
+  if(prepared.pending)return {pending:prepared.pending,snapshotId,cursor:prepared.cursor??0};
+  ({metadata,snapshotDigest}=prepared);
+ }
+
  let previousPageDigest=await domainDigest(snapshotDomain(metadata,'snapshot-start'),{metadata,snapshotDigest}),requestToken=null;
- for(let first=0;first<pageIndex;first+=8){
+ const {pageCount:pageIndex}=metadata;
+ let first=0;
+ if(step){
+  // Only committed immutable prefix pages can resume a source signing step.
+  const head=await store.first(`SELECT p.page_index,p.page_json,
+    (SELECT count(*) FROM jwt_v2_reconcile_pages same WHERE same.snapshot_id=p.snapshot_id) AS page_count
+    FROM jwt_v2_reconcile_pages p WHERE p.snapshot_id=? ORDER BY p.page_index DESC LIMIT 1`,snapshotId);
+  if(head){
+   const page=strictJSON(head.page_json);
+   const {pageDigest,...unsigned}=page;
+   first=head.page_index+1;
+   requireThat(head.page_count===first&&first<=pageIndex&&page.pageIndex===head.page_index
+    &&canonical(pick(page,META))===canonical(metadata)&&page.snapshotDigest===snapshotDigest
+    &&equal(pageDigest,await domainDigest(snapshotDomain(metadata,'snapshot-page'),unsigned)),'SNAPSHOT_PAGE_PREFIX_CONFLICT',409);
+   const expected=first===pageIndex?null:await snapshotCursor(metadata,snapshotDigest,first,cursorKey);
+   requireThat(page.nextPageToken===expected,'SNAPSHOT_PAGE_PREFIX_CONFLICT',409);
+   previousPageDigest=pageDigest;requestToken=expected;
+  }
+ }
+ const stop=step?Math.min(first+8,pageIndex):pageIndex;
+ for(;first<stop;first+=8){
   const selected=await store.all('SELECT * FROM jwt_v2_reconcile_parts WHERE snapshot_id=? AND page_index>=? ORDER BY page_index LIMIT 8',snapshotId,first);
   requireThat(selected.length===Math.min(8,pageIndex-first)&&selected.every((part,index)=>part.page_index===first+index),'SNAPSHOT_PART_MISSING',409);
   const pages=[];
@@ -249,12 +411,13 @@ export async function buildSnapshot({store,snapshotId,cursorKey,cursorKeyId,conf
     snapshotId,i,requestToken,json),guard,clear);
    previousPageDigest=page.pageDigest;requestToken=nextPageToken;
   }
-  try{await store.batch(pages);}
+  try{await (source?.commit??store.batch.bind(store))(pages);}
   catch{reject('SNAPSHOT_PAGE_CONFLICT',409);}
  }
+ if(stop<pageIndex)return {pending:'SIGNING',snapshotId,cursor:stop};
  validateMetadata(metadata,config,Math.max(now,clock()));
- const [g,clear]=store.guard('SELECT 1 FROM jwt_v2_reconcile_captures WHERE snapshot_id=? AND status=? AND metadata_json=? AND snapshot_digest=?',[snapshotId,'BUILDING',canonical(metadata),snapshotDigest]);
- await store.batch([g,store.stmt("UPDATE jwt_v2_reconcile_captures SET status='READY' WHERE snapshot_id=?",snapshotId),clear]);
+ const [g,clear]=store.guard("SELECT 1 FROM jwt_v2_reconcile_captures WHERE snapshot_id=? AND status IN('BUILDING','READY') AND metadata_json=? AND snapshot_digest=?",[snapshotId,canonical(metadata),snapshotDigest]);
+ await (source?.commit??store.batch.bind(store))([g,store.stmt("UPDATE jwt_v2_reconcile_captures SET status='READY' WHERE snapshot_id=?",snapshotId),clear]);
  return {metadata,snapshotDigest};
 }
 
@@ -309,6 +472,7 @@ export class SnapshotReceiver {
   const row=await this.store.first('SELECT * FROM jwt_v2_receive_requests WHERE request_id=?',meta.requestId);
   requireThat(row&&['PENDING','COMPLETE'].includes(row.status),'UNREQUESTED_RECONCILIATION_REPLY',409);
   const request=validateReconcileRequest(strictJSON(row.request_json),this.config);
+  if(request.buildProtocol===steppedBuildProtocol)requireThat(this.config.snapshotBuildSteps===true,'SNAPSHOT_BUILD_PROFILE_CHANGED',409);
   requireThat(row.request_binding===requestBinding(request)&&request.requestId===meta.requestId&&request.env===meta.env&&request.ownerApp===meta.ownerApp&&request.recipientApp===meta.recipientApp&&request.stream===meta.stream,'RECONCILE_RESPONSE_BINDING_CONFLICT',409);
   const same=request.ownerEpoch===meta.ownerEpoch;
   const genesis=request.ownerEpoch===null&&this.trust.currentEpoch===null&&this.trust.genesisEpoch===meta.ownerEpoch;
@@ -317,23 +481,91 @@ export class SnapshotReceiver {
   requireThat(genesis||(same?meta.coveredThrough>=request.contiguousThrough:meta.predecessorCoveredThrough>=request.contiguousThrough),'RECONCILE_WATERMARK_REGRESSION',409);
   return row;
  }
- async stage(raw,{now}){
+ async stageBuildProgress(request,reply,{now}){
+  await this.ready;
+  exact(reply,['mode','base','requestDigest','phase','cursor','code']);
+  const meta=reply.base,phase=buildPhases.indexOf(reply.phase);
+  requireThat(reply.mode==='BUILD_PENDING'&&request.buildProtocol===steppedBuildProtocol&&this.config.snapshotBuildSteps===true&&request.pageToken===null
+   &&phase>=0&&safeInt(reply.cursor)&&reply.code===(reply.phase==='BLOCKED'?'SNAPSHOT_BUILD_ENVELOPE_EXCEEDED':null)
+   &&meta?.requestId===request.requestId&&equal(reply.requestDigest,await digest(JSON.parse(requestBinding(request)))),
+   'SNAPSHOT_BUILD_REPLY_CONFLICT',409);
+  validateBase(meta,this.config,now);
+  validateEpoch(meta,this.trust);
+  const pending=await this.pendingFor(meta),base=canonical(meta);
+  const [guard,clear]=this.store.guard(`SELECT 1 FROM jwt_v2_receive_requests r
+    WHERE r.request_id=? AND r.request_binding=? AND r.status IN('PENDING','COMPLETE')
+    AND ?>unixepoch()
+    AND NOT EXISTS(SELECT 1 FROM jwt_v2_snapshot_receive_retirements t WHERE t.request_id=r.request_id)
+    AND NOT EXISTS(SELECT 1 FROM jwt_v2_receive_snapshots s WHERE s.request_id=r.request_id
+      AND (s.snapshot_id<>? OR json_remove(s.metadata_json,'$.totalRecords','$.bucketCounts','$.pageCount')<>?))
+    AND NOT EXISTS(SELECT 1 FROM jwt_v2_snapshot_build_receipts b WHERE b.request_id=r.request_id
+      AND (b.base_json<>? OR b.request_digest<>?))`,
+   [meta.requestId,pending.request_binding,meta.expiresAt,meta.snapshotId,base,base,reply.requestDigest]);
+  const watermarks=meta.predecessorEpoch===null
+   ?[[meta.ownerEpoch,meta.coveredThrough]]
+   :[[meta.ownerEpoch,meta.coveredThrough],[meta.predecessorEpoch,meta.predecessorCoveredThrough]];
+  await this.store.batch([guard,
+   this.store.stmt(`INSERT INTO jwt_v2_snapshot_build_receipts VALUES(?,?,?,?,?)
+    ON CONFLICT(request_id) DO UPDATE SET phase=excluded.phase,cursor=excluded.cursor
+    WHERE excluded.phase>jwt_v2_snapshot_build_receipts.phase OR excluded.phase=jwt_v2_snapshot_build_receipts.phase
+     AND excluded.cursor>jwt_v2_snapshot_build_receipts.cursor`,
+    meta.requestId,base,reply.requestDigest,phase,reply.cursor),
+   ...watermarks.map(([epoch,coveredThrough])=>this.store.stmt(`INSERT INTO jwt_v2_event_streams
+    (source_app,target_app,stream,owner_epoch,contiguous_through,highest_seen) VALUES(?,?,?,?,0,?)
+    ON CONFLICT(source_app,target_app,stream,owner_epoch)
+    DO UPDATE SET highest_seen=max(highest_seen,excluded.highest_seen)`,
+    meta.ownerApp,meta.recipientApp,meta.stream,epoch,coveredThrough)),
+   clear]);
+ }
+ async stage(raw,{now,observeWatermark=false}){
   // Low-level adapter: transport authentication must precede this call. It never grants API authority.
   await this.ready;
   const {page,meta,text}=validatePage(raw,{config:this.config,recordConfig:this.recordConfig,trust:this.trust,now});
-  await this.pendingFor(meta);
+  const pending=await this.pendingFor(meta);
+  const buildCheck=strictJSON(pending.request_json).buildProtocol===steppedBuildProtocol;
+  if(buildCheck){
+   const digestReads=Object.values(meta.bucketCounts).reduce((n,c)=>n+(c?Math.floor(c/20)+1:0),0);
+   requireThat(meta.totalRecords<=snapshotBuildLimits.records&&meta.pageCount<=snapshotBuildLimits.pages
+    &&digestReads<=snapshotBuildLimits.digestReads,'SNAPSHOT_BUILD_ENVELOPE_EXCEEDED',409);
+  }
   const unsigned=Object.fromEntries(Object.entries(page).filter(([k])=>k!=='pageDigest'));
   requireThat(equal(page.pageDigest,await domainDigest(snapshotDomain(meta,'snapshot-page'),unsigned)),'SNAPSHOT_PAGE_DIGEST',409);
   if(page.pageIndex===0)requireThat(equal(page.previousPageDigest,await domainDigest(snapshotDomain(meta,'snapshot-start'),{metadata:meta,snapshotDigest:page.snapshotDigest})),'SNAPSHOT_CHAIN_SEED',409);
-  let capture=await this.store.first('SELECT * FROM jwt_v2_receive_snapshots WHERE snapshot_id=? OR request_id=?',meta.snapshotId,meta.requestId);
-  requireThat(!capture||capture.snapshot_id===meta.snapshotId&&capture.metadata_json===canonical(meta)&&capture.snapshot_digest===page.snapshotDigest,'SNAPSHOT_METADATA_CONFLICT',409);
-  if(!capture)await this.store.stmt("INSERT INTO jwt_v2_receive_snapshots VALUES(?,?,?,?,'STAGED') ON CONFLICT DO NOTHING",meta.snapshotId,meta.requestId,canonical(meta),page.snapshotDigest).run();
-  capture=await this.store.first('SELECT * FROM jwt_v2_receive_snapshots WHERE snapshot_id=? OR request_id=?',meta.snapshotId,meta.requestId);
-  requireThat(capture?.snapshot_id===meta.snapshotId&&capture.metadata_json===canonical(meta)&&capture.snapshot_digest===page.snapshotDigest,'SNAPSHOT_METADATA_CONFLICT',409);
-  const old=await this.store.first('SELECT page_json FROM jwt_v2_receive_pages WHERE snapshot_id=? AND page_index=?',meta.snapshotId,page.pageIndex);
-  requireThat(!old||old.page_json===text,'CONFLICTING_DUPLICATE_PAGE',409);
-  if(!old)await this.store.stmt('INSERT INTO jwt_v2_receive_pages VALUES(?,?,?) ON CONFLICT(snapshot_id,page_index) DO NOTHING',meta.snapshotId,page.pageIndex,text).run();
-  const stored=await this.store.first('SELECT page_json FROM jwt_v2_receive_pages WHERE snapshot_id=? AND page_index=?',meta.snapshotId,page.pageIndex);requireThat(stored.page_json===text,'CONFLICTING_DUPLICATE_PAGE',409);
+  const [request,clearRequest]=this.store.guard(`SELECT 1 FROM jwt_v2_receive_requests r
+   WHERE request_id=? AND request_binding=? AND status IN('PENDING','COMPLETE')${buildCheck?
+    ` AND ?>unixepoch()
+      AND NOT EXISTS(SELECT 1 FROM jwt_v2_snapshot_receive_retirements t WHERE t.request_id=r.request_id)
+      AND NOT EXISTS(SELECT 1 FROM jwt_v2_snapshot_build_receipts b WHERE b.request_id=r.request_id AND (b.base_json<>? OR b.phase=5))
+      AND (EXISTS(SELECT 1 FROM jwt_v2_snapshot_receive_slots z WHERE z.request_id=r.request_id AND z.snapshot_id=? AND z.stream=?)
+       OR (SELECT count(*) FROM jwt_v2_snapshot_receive_slots z WHERE z.stream=?)<2)`:''}`,
+   [meta.requestId,pending.request_binding,...(buildCheck?[meta.expiresAt,canonical(pick(meta,BASE)),meta.snapshotId,meta.stream,meta.stream]:[])]);
+  const [header,clearHeader]=this.store.guard(`SELECT 1 FROM jwt_v2_receive_snapshots
+   WHERE request_id=? AND snapshot_id=? AND metadata_json=? AND snapshot_digest=?`,
+   [meta.requestId,meta.snapshotId,canonical(meta),page.snapshotDigest]);
+  const [body,clearBody]=this.store.guard(`SELECT 1 FROM jwt_v2_receive_pages
+   WHERE snapshot_id=? AND page_index=? AND page_json=?`,[meta.snapshotId,page.pageIndex,text]);
+  try{
+   await this.store.batch([
+   request,
+   this.store.stmt("INSERT INTO jwt_v2_receive_snapshots VALUES(?,?,?,?,'STAGED') ON CONFLICT DO NOTHING",
+    meta.snapshotId,meta.requestId,canonical(meta),page.snapshotDigest),
+   header,
+   ...(buildCheck?[this.store.stmt('INSERT INTO jwt_v2_snapshot_receive_slots VALUES(?,?,?) ON CONFLICT(request_id) DO NOTHING',
+    meta.requestId,meta.snapshotId,meta.stream)]:[]),
+   this.store.stmt('INSERT INTO jwt_v2_receive_pages VALUES(?,?,?) ON CONFLICT(snapshot_id,page_index) DO NOTHING',meta.snapshotId,page.pageIndex,text),
+   body,
+   ...(observeWatermark?[this.store.stmt(`UPDATE jwt_v2_event_streams SET highest_seen=max(highest_seen,?)
+    WHERE source_app=? AND target_app=? AND stream=? AND owner_epoch=?`,
+    meta.coveredThrough,meta.ownerApp,meta.recipientApp,meta.stream,meta.ownerEpoch)]:[]),
+   clearBody,clearHeader,clearRequest
+  ]);
+  }catch(error){
+   const capture=await this.store.first('SELECT * FROM jwt_v2_receive_snapshots WHERE snapshot_id=? OR request_id=?',meta.snapshotId,meta.requestId);
+   requireThat(!capture||capture.snapshot_id===meta.snapshotId&&capture.metadata_json===canonical(meta)&&capture.snapshot_digest===page.snapshotDigest,'SNAPSHOT_METADATA_CONFLICT',409);
+   const prior=await this.store.first('SELECT page_json FROM jwt_v2_receive_pages WHERE snapshot_id=? AND page_index=?',meta.snapshotId,page.pageIndex);
+   requireThat(!prior||prior.page_json===text,'CONFLICTING_DUPLICATE_PAGE',409);
+   throw error;
+  }
   return this.verify(meta.snapshotId,{now});
  }
  async verify(snapshotId,{now}){

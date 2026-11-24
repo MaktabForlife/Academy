@@ -120,5 +120,18 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{},v2Env
   throw fail('Access changed while loading. Refresh before continuing.','SPLIT_READ_CHANGED',409);
   }catch(error){verifiedReaders.delete(key);throw error;}
  });}
- return {write,read,recover:()=>exclusive(recover)};
+ async function assertDrained(){
+  const [coreState,adminState]=await Promise.all([
+   core.prepare("SELECT EXISTS(SELECT 1 FROM split_write_fence) OR EXISTS(SELECT 1 FROM split_commands WHERE phase NOT IN ('ABORTED','DONE')) pending").first(),
+   admin.prepare("SELECT EXISTS(SELECT 1 FROM split_commands WHERE phase NOT IN ('ABORTED','ROLLED_BACK','DONE')) pending").first()
+  ]);
+  if(coreState?.pending!==0||adminState?.pending!==0)throw fail('Split recovery is still pending.');
+ }
+ return {write,read,recover:()=>exclusive(recover),
+  checkBeforeRestore:(draining,checkAlarm)=>exclusive(async()=>{
+   if(draining)await recover();
+   await assertDrained();
+   await checkAlarm();
+  })
+ };
 }
