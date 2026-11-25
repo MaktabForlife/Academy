@@ -49,7 +49,14 @@ export function circlesCourseRow(document){
    section.querySelector('.branch-programme-intro').textContent=academyLinks
     ?(coursesHref?'Use Show all to view your courses.':'Course access is unavailable for this Academy account.')
     :'Your current and recent courses.';
-   if(coursesHref){const all=document.createElement('a');all.href=coursesHref;all.className='circles-show-all-courses';all.textContent='Show all';all.setAttribute('aria-label','Show all courses');section.querySelector('.section-head').append(all);
+   if(coursesHref){
+    const all=document.createElement('a');
+    all.href=coursesHref;
+    all.className='circles-show-all-courses';
+    all.textContent='Show all';
+    all.setAttribute('aria-label','Show all courses');
+    section.querySelector('.section-head').append(all);
+   }
    publicTrack.id='circles-purchased-course-row';publicTrack.classList.add('circles-purchased-course-row');publicTrack.setAttribute('aria-label','Your paid courses');
    const courses=learnCourses(navigation,mode);
    publicTrack.innerHTML=academyLinks?'':!courses?'<p role="status">Loading your courses…</p>':courses.length?purchasedCourseCards(coursePreview(courses)):'<p>No paid courses are linked to this account.</p>';
