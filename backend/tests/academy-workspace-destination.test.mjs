@@ -5,7 +5,7 @@ import {programmeChoice} from '../src/academy/d1/web-platform/navigation.mjs';
 import {selectWorkspace,guardWorkspace,readerPreview,actualRole} from '../src/academy/d1/workspace-access.js';
 import {academyDestination} from '../../academy/website-platform/connect/destinations.mjs';
 import {circleBlockChoices} from '../../portal/shared/circles-block-navigation.mjs';
-import {dashboardProgrammeLinks} from '../../portal/shared/dashboard-programme-links.mjs';
+import {academyDashboardProgrammeLinks,dashboardProgrammeLinks} from '../../portal/shared/dashboard-programme-links.mjs';
 import {dashboardHTML} from '../../portal/shared/circles-dashboard-view.mjs';
 
 const activity={activity_key:'PROGRAM:programme-one',activity_id:'programme-one',kind:'PROGRAM',active:true,lifecycle:'ACTIVE'},other={...activity,activity_key:'PROGRAM:programme-two',activity_id:'programme-two'};
@@ -95,4 +95,21 @@ test('Academy programme links render from the checked dashboard even when websit
  const withdrawn={...learner,activities:[{...activity,active:false},other]};
  const checkedAgain=await dashboardSummary(withdrawn,env,{mode:'learn'},read);
  assert.deepEqual(dashboardProgrammeLinks(checkedAgain,websiteNavigation).academia,[]);
+});
+
+test('the signed Academy dashboard keeps fallback links hidden when its app-link projection is missing or incomplete',()=>{
+ const academyOnly={studioAdmitted:false,tafseer:null,courses:null,mothers:false,hifz:null,academia:[]};
+ const childLinks={
+  tafseer:'/studio/?view=collections&collection=tafseer',
+  courses:'/studio/?view=collections&collection=courses',
+  hifz:'https://mahadarwa-hifz.ummabbadacademy.app/',
+  mothers:true
+ };
+ for(const value of [null,{}, {entryLinks:{}}, {entryLinks:childLinks}]){
+  assert.deepEqual(academyDashboardProgrammeLinks(value),academyOnly);
+ }
+ assert.deepEqual(academyDashboardProgrammeLinks({entryLinks:{studioAdmitted:true,...childLinks}}),
+  {...academyOnly,studioAdmitted:true,...childLinks});
+ assert.deepEqual(academyDashboardProgrammeLinks({entryLinks:{studioAdmitted:false,...childLinks}}),
+  {...academyOnly,hifz:childLinks.hifz});
 });
